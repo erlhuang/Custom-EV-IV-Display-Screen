@@ -72,9 +72,32 @@ struct EvIvDisplayScreen
 
     MainCallback savedCallback;
     u16 tilemapBuffer[0x400];
+    u16 monSpriteId;
+    u8 inEditor : 1;
+    u8 inSelector : 1;
+    u8 selectedColumn;
+    u8 selectedStat;
+    u16 cursorSpriteId;
 };
 
+#define gState              gEvIv->state
+#define gGfxStep            gEvIv->gfxStep
+#define gCallbackStep       gEvIv->callbackStep
+#define gCurrentMon         gEvIv->currentMon
+#define gSpriteTaskId       gEvIv->spriteTaskId
+#define gStats_ev           gEvIv->stats_ev
+#define gStats_iv           gEvIv->stats_iv
+#define gStats_bs           gEvIv->stats_bs
+#define gTotalStatsEV       gEvIv->totalStatsEV
+#define gTotalStatsIV       gEvIv->totalStatsIV
+#define gTotalStatsBS       gEvIv->totalStatsBS
+#define gInEditor           gEvIv->inEditor
+#define gInSelector         gEvIv->inSelector
+#define gSelectedColumn     gEvIv->selectedColumn
+#define gSelectedStat       gEvIv->selectedStat
+#define gCursorSpriteId     gEvIv->cursorSpriteId
 extern struct EvIvDisplayScreen *gEvIv;
+static void SpriteCB_SandboxCursor(struct Sprite* sprite);
 
 #ifdef EMERALD
 //EMERALD

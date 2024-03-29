@@ -4,7 +4,7 @@
 # EMERALD       = BPEE
 # ESMERALDA     = BPES
 # CFRU      	= CFRU
-ROM_CODE ?= BPRE
+ROM_CODE ?= CFRU
 
 # [ESP] ------------------------------------------------------------
 # Cambiar ff0000 por un offset alineado con suficiente espacio libre.
@@ -15,11 +15,10 @@ ROM_CODE ?= BPRE
 # Change ff0000 to an aligned offset with enough free space.
 # Change 0x08 to 0x09 to use in expanded space.
 # example: for offset 0x1af0000, put 0x09af0000
-OFFSET ?= 0x08ff0000
+OFFSET ?= 0x08805080
 
 
 # [CFRU]
 # en el archivo offsets.ini de tu CFRU, buscar el offset+1 de CompressedMonToMon y ponerlo aquí:
 # in your CFRU's offsets.ini file, look for the offset+1 of CompressedMonToMon and put it here:
-COMPRESSED_MON_TO_MON_PTR ?= 0x08985AC5
-
+COMPRESSED_MON_TO_MON_PTR ?= 0x090B6B61

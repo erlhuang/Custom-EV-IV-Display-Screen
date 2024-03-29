@@ -141,4 +141,3 @@ VarSet      = 0x0806e584|1;
 FlagSet     = 0x0806e680|1;
 FlagClear   = 0x0806e6a8|1;
 FlagGet     = 0x0806e6d0|1;
-

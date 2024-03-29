@@ -142,3 +142,9 @@ FlagSet     = 0x0806e680|1;
 FlagClear   = 0x0806e6a8|1;
 FlagGet     = 0x0806e6d0|1;
 
+gEvolutionTable = 0x8259754;
+CreateSprite = 0x8006F8C | 1;
+LoadSpriteSheet = 0x80086DC | 1;
+LoadSpritePalette = 0x8008928 | 1;
+gDummySpriteAffineAnimTable = 0x8231CFC;
+DestroySprite = 0x8007280 | 1;

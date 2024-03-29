@@ -29,13 +29,123 @@
 
 #include "main_eviv.h"
 
+
+typedef struct Evolution EvolutionTableT[EVOS_PER_MON];
+#define gEvolutionTable ((EvolutionTableT*) *((u32*) 0x8042F6C))
+
+#define FLAG_BRENDAN_FINAL 0x991
+
+#define FLAG_GIOVANNI_BOSS 0x982
+#define FLAG_ARCHER_ARIANA_B2B 0x981
+
+#define FLAG_MAY_BOSS 0x998
+
+
+#define FLAG_ARCHER_ARIANA_TAG 0x955
+#define FLAG_ARCHER_MT_MOON 0x201
+#define FLAG_HARDCORE_MODE 0x1034
+#define FLAG_EASY_MODE 0x1033
+
+enum EvolutionMethods
+{
+	EVO_NONE = 0,
+	EVO_FRIENDSHIP,
+	EVO_FRIENDSHIP_DAY,
+	EVO_FRIENDSHIP_NIGHT,
+	EVO_LEVEL,
+	EVO_TRADE,
+	EVO_TRADE_ITEM,
+	EVO_ITEM,		// for dawn stone, add MON_MALE(0x0) or MON_FEMALE(0xFE) to .unknown in evo table entry
+	EVO_LEVEL_ATK_GT_DEF,
+	EVO_LEVEL_ATK_EQ_DEF,
+	EVO_LEVEL_ATK_LT_DEF,
+	EVO_LEVEL_SILCOON,
+	EVO_LEVEL_CASCOON,
+	EVO_LEVEL_NINJASK,
+	EVO_LEVEL_SHEDINJA,
+	EVO_BEAUTY,
+	// new evolutions
+	EVO_RAINY_FOGGY_OW,		// raining or foggy in overworld
+	EVO_MOVE_TYPE,	// knows a move with a specific type (eg. sylveon: fairy type move). Param is the move type
+	EVO_TYPE_IN_PARTY,	//specific type (unknown) in party after given level (param).
+	EVO_MAP, 	// specific map evolution. bank in param, map in unknown
+	EVO_MALE_LEVEL,		// above given level if male
+	EVO_FEMALE_LEVEL,	// above given level if female
+	EVO_LEVEL_NIGHT,	// above given level at night
+	EVO_LEVEL_DAY,		// above given level during day
+	EVO_HOLD_ITEM_NIGHT,	// level up holding item at night (eg. sneasel)
+	EVO_HOLD_ITEM_DAY,	// level up while holding a specific item during the day (eg. happiny)
+	EVO_MOVE,	// knows a given move
+	EVO_OTHER_PARTY_MON,	//another poke in the party, arg is a specific species
+	EVO_LEVEL_SPECIFIC_TIME_RANGE, // above given level with a range (unknown is [start][end]. eg lycanroc -> 1700-1800 hrs -> 0x1112)
+	EVO_FLAG_SET, //If a certain flag is set. Can be used for touching the Mossy/Icy Rock for Leafeon/Glaceon evolutions
+    EVO_NATURE_TOXTRICITY,
+    EVO_NATURE_LOWKEY,
+};
+
+// #define SPECIES_EEVEE 0x85
+// #define SPECIES_GLOOM 0x2C
+#define SPECIES_APPLIN 0x46C
+// #define SPECIES_SLOWPOKE 0x4F
+#define SPECIES_SLOWPOKE_G 0x4BB
+#define SPECIES_BASCULIN_BLUE 0x2E0
+#define SPECIES_BASCULIN_RED 0x25B
+#define SPECIES_ESPURR 0x311
+#define SPECIES_BURMY 0x1D1
+#define SPECIES_BURMY_TRASH 0x2C4 
+#define SPECIES_BURMY_SANDY 0x2C3
+#define ITEM_LINK_CABLE 87
+#define ITEM_SUN_STONE 93
+#define ITEM_MOON_STONE 94
+#define ITEM_FIRE_STONE 95
+#define ITEM_THUNDER_STONE 96
+#define ITEM_WATER_STONE 97
+#define ITEM_LEAF_STONE 98
+#define ITEM_SHINY_STONE 99
+#define ITEM_DUSK_STONE 100
+#define ITEM_DAWN_STONE 101
+#define ITEM_ICE_STONE 102
+#define ITEM_UP_GRADE 218
+#define MOVE_ANCIENTPOWER 0xF6
+#define MOVE_DOUBLEHIT 0x1B6
+// #define MOVE_MIMIC 0x66
+// #define MOVE_STOMP 0x17
+#define MOVE_DRAGONPULSE 0x172
+// #define MOVE_TAUNT 0x10D
+// #define MOVE_ROLLOUT 0xCD
+#define MOVE_SHADOWPUNCH 0x145
+#define MOVE_HYPERDRILL 0x300
+#define MOVE_TWINBEAM 0x30F
+#define ITEM_METAL_COAT 199
+#define ITEM_PRISM_SCALE 176
+#define ITEM_KINGS_ROCK 187
+// #define SPECIES_SCYTHER 0x7B
+// #define SPECIES_PICHU 0xAC
+// #define SPECIES_KIRLIA 0x189
+// #define SPECIES_SNORUNT 0x15A
+// #define SPECIES_CLAMPERL 0x175
+#define SPECIES_KUBFU 0x49F
+#define SPECIES_CHARCADET 0x3AA
+#define SPECIES_COSMOEM 0x3EF
+#define SPECIES_PETILIL 0x259
+// #define SPECIES_QUILAVA 0x9C
+#define SPECIES_DARTRIX 0x3AC 
+#define SPECIES_DEWOTT 0x22B
+#define SPECIES_RUFFLET 0x2A8
+#define SPECIES_BERGMITE 0x334
+#define SPECIES_GOOMY 0x32C
+// #define SPECIES_CUBONE 0x68
+// #define SPECIES_EXEGGCUTE 0x66
+#define SPECIES_MIME_JR 0x1EC
+#define SPECIES_ROCKRUFF 0x3C1
+#define SPECIES_LECHONK 0x34E
 // LANGUAGE_SPANISH o 7 para usar los textos en español
 // LANGUAGE_ENGLISH or 2 to use the english text
-#define EV_IV_TEXT              LANGUAGE_SPANISH
+#define EV_IV_TEXT              LANGUAGE_ENGLISH
 
 // Cambiar a TRUE si la potencia base de Poder Oculto es fija.
 // Set TRUE if Hidden Power's Base Power is fixed
-#define HIDDEN_POWER_STATIC     FALSE
+#define HIDDEN_POWER_STATIC     TRUE
 
 // Cambie esto a la potencia base de Poder Oculto si está fijo en cualquier número que no sea 60.
 // Change this to the base power of Hidden Power if it's fixed to any number other than 60.
@@ -95,6 +205,12 @@ static void PrintStat(u8 nature, u8 stat);
 static u8 GetDigitsDec(u32 num);
 static u8 GetDigitsHex(u32 num);
 static u8 GetColorByNature(u8 nature, u8 statIndex);
+static u8 GetCurrentLevelCap(void); 
+#define EVS             0
+#define IVS             1
+#define ABILITY_EDIT    2
+#define GENDER          3
+
 
 const u32 gBgEvIvGfx[] = INCBIN_U32("graphics/bgEvIv.4bpp.lz");
 const u32 gBgEvIvTilemap[] = INCBIN_U32("graphics/bgEvIv.bin.lz");
@@ -134,7 +250,7 @@ static const struct BgTemplate sBg_Templates[] = {
 
 //window 0 = pokémon name
 #define WINDOW0_WIDTH   29
-#define WINDOW0_HEIGTH  2
+#define WINDOW0_HEIGTH  2 //2
 
 //window 1 = stats
 #define WINDOW1_WIDTH   16
@@ -142,7 +258,7 @@ static const struct BgTemplate sBg_Templates[] = {
 #define WINDOW1_BASEBLOCK  (WINDOW0_WIDTH * WINDOW0_HEIGTH)
 
 //window 2 = text in the bottom bar / texto en la barra inferior
-#define WINDOW2_WIDTH   16
+#define WINDOW2_WIDTH   29
 #define WINDOW2_HEIGTH  5
 #define WINDOW2_BASEBLOCK WINDOW1_WIDTH * WINDOW1_HEIGTH + WINDOW1_BASEBLOCK
 
@@ -203,16 +319,16 @@ static const struct WindowTemplate sWindows_templates[] =
         .paletteNum = 15,
         .baseBlock = WINDOW3_BASEBLOCK
     },
-    [WIN_TYPE] = 
-    {
-        .bg = 0,
-        .tilemapLeft = 25,
-        .tilemapTop = 15,
-        .width = WINDOW4_WIDTH,
-        .height = WINDOW4_HEIGTH,
-        .paletteNum = 14,
-        .baseBlock = WINDOW4_BASEBLOCK
-    },
+    // [WIN_TYPE] = 
+    // {
+    //     .bg = 0,
+    //     .tilemapLeft = 25,
+    //     .tilemapTop = 15,
+    //     .width = WINDOW4_WIDTH,
+    //     .height = WINDOW4_HEIGTH,
+    //     .paletteNum = 14,
+    //     .baseBlock = WINDOW4_BASEBLOCK
+    // },
     [WIN_TOP_BOX] = 
     {
         .bg = 0,
@@ -250,33 +366,10 @@ const u8 gText_BsEvIv[] = _("BS{CLEAR_TO 30}EV{CLEAR_TO 54}IV");
 const u8 gText_eviv_Total[] = _("TOTAL:");
 const u8 gText_Percent[] = _("% ");
 const u8 gText_PokeSum_EvIv[] = _("EV-IV");
-const u8 gText_eviv_Tittle[] = _("POKéMON EV-IV");
+const u8 gText_eviv_Tittle[] = _("Pokémon EV-IV");
 
-#if EV_IV_TEXT == LANGUAGE_SPANISH
-const u8 gText_eviv_Buttons[] = _("{DPAD_UPDOWN}SEL. {A_BUTTON}{B_BUTTON}SALIR");
-const u8 gText_PokeSum_PageName_PokemonSkills[] = _("HABIL. POKéMON");
-const u8 gText_PokeSum_Controls_Page[] = _("{DPAD_LEFTRIGHT}PÁG.");
-const u8 gText_PokeSum_Controls_Page_EvIv[] = _("{DPAD_LEFTRIGHT}PÁG. {A_BUTTON}EV-IV");
-const u8 gText_PokeSum_NoData[] = _("No data");
-const u8 gText_Cancel2[] = _("CANCEL");
-const u8 gText_eviv_Hp[]     = _("PS");
-const u8 gText_eviv_Atk[]    = _("ATAQUE");
-const u8 gText_eviv_Def[]    = _("DEFENSA");
-const u8 gText_eviv_SpAtk[]  = _("ATQ.ESP.");
-const u8 gText_eviv_SpDef[]  = _("DEF.ESP.");
-const u8 gText_eviv_Speed[]  = _("VELOCID.");
-
-const u8 gText_Your[]   = _("Tu ");
-const u8 gText_Is[]     = _(" es ");
-const u8 gText_Happy[]  = _("Felicidad: ");
-const u8 gText_HiddenPower[] = _("Poder oculto");
-const u8 gText_Power[]  = _("Potencia: ");
-
-const u8 gText_Steps_to_hatching[]  = _("Pasos para\neclosionar: ");
-
-#elif EV_IV_TEXT == LANGUAGE_ENGLISH
 const u8 gText_eviv_Buttons[] = _("{DPAD_UPDOWN}SEL. {A_BUTTON}{B_BUTTON}EXIT");
-const u8 gText_PokeSum_PageName_PokemonSkills[] = _("POKéMON SKILLS");
+const u8 gText_PokeSum_PageName_PokemonSkills[] = _("Pokémon Skills");
 const u8 gText_PokeSum_Controls_Page[] = _("{DPAD_LEFTRIGHT}PAGE");
 const u8 gText_PokeSum_Controls_Page_EvIv[] = _("{DPAD_LEFTRIGHT}PAGE {A_BUTTON}EV-IV");
 const u8 gText_PokeSum_NoData[] = _("No data");
@@ -291,12 +384,266 @@ const u8 gText_eviv_Speed[]  = _("SPEED");
 const u8 gText_Your[]   = _("Your ");
 const u8 gText_Is[]     = _(" is ");
 const u8 gText_Happy[]  = _("Happiness: ");
+const u8 gText_Lv[]    = _(" Lv");
 const u8 gText_HiddenPower[] = _("Hidden power");
 const u8 gText_Power[]  = _("Power: ");
 
 const u8 gText_Steps_to_hatching[]  = _("Steps to\nhatch: ");
-#endif
 
+
+const u8 gText_EvolvesLevel[] = _("Evolves at Lv ");
+const u8 gText_DependingOnTimeOfDay[] = _(" depending on time of day.");
+
+const u8 gText_EvosFriendship[] = _("Evolves with high happiness.");
+const u8 gText_EvolvesFriendshipDay[] = _("Evolves with high happiness at daytime.");
+const u8 gText_EvolvesFriendshipNight[] = _("Evolves with high happiness at night.");
+const u8 gText_inRain[] = _(" in Rain.");
+const u8 gText_NoEvolution[] = _("No evolution.");
+
+const u8 gText_EvolvesVariousWays[]  = _("Evolves in various ways.");
+const u8 gText_EvoItem[]  = _("Evolves by using a ");
+const u8 gText_EvoApplin[]  = _("Evolves by Leaf Stone, Sun Stone, or at Lv30.");
+const u8 gText_EvoItemLinkCable[]  = _("Link Cable");
+
+const u8 gText_EvoItemSunStone[] = _("Sun Stone");
+const u8 gText_EvoItemMoonStone[] = _("Moon Stone");
+const u8 gText_EvoItemFireStone[] = _("Fire Stone");
+const u8 gText_EvoItemThunderStone[] = _("Thunder Stone");
+const u8 gText_EvoItemWaterStone[] = _("Water Stone");
+
+const u8 gText_EvoItemLeafStone[] = _("Leaf Stone");
+
+const u8 gText_EvoItemShinyStone[] = _("Shiny Stone");
+
+const u8 gText_EvoItemDuskStone[] = _("Dusk Stone");
+
+const u8 gText_EvoItemDawnStone[] = _("Dawn Stone");
+const u8 gText_EvoItemKingsRock[] = _("King's Rock");
+const u8 gText_EvoItemMetalCoat[] = _("Metal Coat");
+const u8 gText_EvoIfFemale[] = _(" if female");
+const u8 gText_EvoIfMale[] = _(" if male");
+const u8 gText_EvoGenderDepend[] = _(" depending on gender");
+const u8 gText_EvoItemIceStone[] = _("Ice Stone");
+
+const u8 gText_EvoItemUpgrade[] = _("Upgrade");
+const u8 gText_EvoItemPrismScale[] = _("Prism Scale");
+
+const u8 gText_EvoMethodIf[] = _(" if ");
+
+const u8 gText_EvoMethodDark[] = _("Dark ");
+
+const u8 gText_EvoTypeInParty[] = _(" type in party");
+
+const u8 gText_EvoWhenKnowing[] = _("Evolves when knowing ");
+
+const u8 gText_EvoAncientPower[] = _("Ancient Power");
+const u8 gText_EvoDoubleHit[] = _("Double Hit");
+const u8 gText_EvoMimic[] = _("Mimic");
+const u8 gText_EvoStomp[] = _("Stomp");
+const u8 gText_EvoDragonPulse[] = _("Dragon Pulse");
+const u8 gText_EvoTaunt[] = _("Taunt");
+const u8 gText_EvoRollout[] = _("Rollout");
+const u8 gText_EvoShadowPunch[] = _("Shadow Punch");
+const u8 gText_EvoHyperDrill [] = _("Hyper Drill");
+const u8 gText_EvoTwinBeam[] = _("Twin Beam");
+const u8 gText_EvoComma[] = _(", ");
+
+
+const u8 gText_EvoOr[] = _(" or ");
+const u8 gText_EvoSlowpokeStuff[] = _("37 or King's Rock.");
+const u8 gText_EvoSnoruntStuff[] = _("42 or Dawn Stone if Female.");
+const u8 gText_EvoKirliaStuff[] = _("30 or Dawn Stone if Male.");
+const u8 gText_PikachuStuff[] = _("Thunder or Shiny Stone.");
+const u8 gText_EvoAvaluggStuff[] = _("37 or Ice Stone.");
+const u8 gText_EvoGoomyStuff[] = _("40 or Metal Coat.");
+
+const u8 gText_EvoPoliStuff[] = _("Water Stone or King's Rock.");
+const u8 gText_EvoIfDay[] = _(" if daytime");
+const u8 gText_EvoIfNight[] = _(" if nighttime");
+
+const u8 gText_EvoMimeJrStuff[] = _(" or Ice Stone.");
+const u8 gText_Tu[] = _("");
+const u8 gText_Period[]   = _(".");
+
+u8 LevelCap_Badges2[18] = {
+	15, //Before Brock
+	22, //before Mt Moon Archer
+	27, //Before Misty
+	34, //Before Surge
+	44, //Before Erika
+	47, //Before Celadon Giovanni
+	56, //Before Archer/Ariana Tag battle
+	57, //Before Giovanni Saffron
+	59, //Before Sabrina 
+	68, //Before Koga
+	73, //Before May
+	76, //Before Blaine
+	79, //Before Archer/Ariana 
+	80, //Before Giovanni Final
+	81, //Before Claire
+	82, //Before Brendan
+	85, //Before E4
+	100}; //added here
+
+u8 LevelCap_BadgesHardcoreMode2[18] = {
+	16, //Before Brock
+	23, //before Mt Moon Archer
+	28, //Before Misty
+	36, //Before Surge
+	44, //Before Erika
+	47, //Before Celadon Giovanni
+	56, //Before Archer/Ariana Tag battle
+	57, //Before Giovanni Saffron
+	59, //Before Sabrina 
+	68, //Before Koga
+	73, //Before May
+	76, //Before Blaine
+	79, //Before Archer/Ariana 
+	80, //Before Giovanni Final
+	81, //Before Claire
+	82, //Before Brendan
+	85, //Before E4
+	100}; //added here
+
+static u8 GetBadgeCount(void) //added this here
+{
+	u8 badgeCount = 0;
+
+	if (FlagGet(FLAG_SYS_GAME_CLEAR)) //0x82C
+		return 17;
+	if (FlagGet(FLAG_BRENDAN_FINAL))
+		++badgeCount;
+	if (FlagGet(FLAG_BADGE08_GET))
+		++badgeCount;
+	if (FlagGet(FLAG_GIOVANNI_BOSS))
+	    ++badgeCount;
+	if (FlagGet(FLAG_ARCHER_ARIANA_B2B))
+		++badgeCount;
+	if (FlagGet(FLAG_BADGE07_GET))
+		++badgeCount;
+	if (FlagGet(FLAG_MAY_BOSS))
+		++badgeCount;
+	if (FlagGet(FLAG_BADGE06_GET))
+		++badgeCount;
+	if (FlagGet(FLAG_BADGE05_GET))
+		++badgeCount;
+	if (FlagGet(FLAG_HIDE_SILPH_ROCKETS))
+		++badgeCount;
+	if (FlagGet(FLAG_ARCHER_ARIANA_TAG))
+		++badgeCount;
+	if (FlagGet(FLAG_HIDE_HIDEOUT_GIOVANNI))
+		++badgeCount; 
+	if (FlagGet(FLAG_BADGE04_GET))
+		++badgeCount;
+	if (FlagGet(FLAG_BADGE03_GET))
+		++badgeCount;
+	if (FlagGet(FLAG_BADGE02_GET))
+		++badgeCount;
+	if (FlagGet(FLAG_ARCHER_MT_MOON))
+		++badgeCount; 
+	if (FlagGet(FLAG_BADGE01_GET))
+		++badgeCount;
+
+	return badgeCount;
+}
+
+static u32 MathMin(u32 num1, u32 num2)
+{
+	if (num1 < num2)
+		return num1;
+
+	return num2;
+}
+
+static u8 GetCurrentLevelCap(void) 
+{
+	u8 badgeCount = GetBadgeCount(); //added
+	u8 lvlCap = LevelCap_Badges2[badgeCount]; //added
+	if (FlagGet(FLAG_HARDCORE_MODE)){
+		lvlCap = LevelCap_BadgesHardcoreMode2[badgeCount];
+	}
+	else if (FlagGet(FLAG_EASY_MODE)) {
+		lvlCap = lvlCap + 3;
+		lvlCap = MathMin(100, lvlCap);
+	}
+	return lvlCap;
+}
+
+#define SELECTION_CURSOR_TAG 0x200
+
+static const struct OamData sCursorOam =
+{
+	.affineMode = ST_OAM_AFFINE_OFF,
+	.objMode = ST_OAM_OBJ_NORMAL,
+	.shape = SPRITE_SHAPE(32x32),
+	.size = SPRITE_SIZE(32x32),
+	.priority = 0, //Above other sprites
+};
+static const union AnimCmd sAnimCmdHandCursor[] =
+{
+	ANIMCMD_FRAME(0, 30),
+	ANIMCMD_FRAME(16, 30),
+	ANIMCMD_JUMP(0)
+};
+
+static const union AnimCmd sAnimCmdHandCursorPointed[] =
+{
+	ANIMCMD_FRAME(16, 30),
+	ANIMCMD_END
+};
+
+static const union AnimCmd *const sAnimCmdTable_HandCursor[] =
+{
+	sAnimCmdHandCursor,
+	sAnimCmdHandCursorPointed,
+};
+static const struct SpriteTemplate sGUICursorTemplate =
+{
+	.tileTag = SELECTION_CURSOR_TAG,
+	.paletteTag = SELECTION_CURSOR_TAG,
+	.oam = &sCursorOam,
+	.anims = sAnimCmdTable_HandCursor,
+	.images = NULL,
+	.affineAnims = gDummySpriteAffineAnimTable,
+	.callback = SpriteCB_SandboxCursor,
+};
+
+static const struct SpriteSheet sCursorSpriteSheet = {(void*) 0x83D2BEC, (32 * 32 * 4) / 2, SELECTION_CURSOR_TAG};
+static const struct SpritePalette sCursorSpritePalette = {(void*) 0x83CE7F0, SELECTION_CURSOR_TAG};
+
+static void SpriteCB_SandboxCursor(struct Sprite* sprite)
+{
+
+}
+
+
+static void CreateSandboxCursor(void)
+{
+	LoadSpriteSheet(&sCursorSpriteSheet);
+	LoadSpritePalette(&sCursorSpritePalette);
+    u8 x = 0;
+    u8 y = 0;
+    switch(gSelectedColumn)
+    {
+        case EVS:
+            x = 112;
+            y = 28 + (14 * gSelectedStat); 
+            break;
+        case IVS:
+            x = 138;
+            y = 28 + (14 * gSelectedStat); 
+            break;
+        case ABILITY_EDIT:
+            x = 180;
+            y = 121;
+            break;
+        case GENDER:
+            x = 164;
+            y = 24;
+            break;
+    }
+	gCursorSpriteId = CreateSprite(&sGUICursorTemplate, x, y, 1);
+}
 
 static void EvIvBgInit(void)
 {
@@ -426,9 +773,9 @@ static void Task_EvIvInit(u8 taskId)
         CopyToBgTilemapBuffer(1, gBgEvIvTilemap, 0, 0);
         break;
     case 4:
-        FillWindowPixelBuffer(WIN_TOP_BOX, 0);
-        AddTextPrinterParameterized3(WIN_TOP_BOX, 2, 0x10, 2, sWhiteTextColor, 0, gText_eviv_Tittle);
-        AddTextPrinterParameterized3(WIN_TOP_BOX, 0, 0x98, 1, sWhiteTextColor, 0, gText_eviv_Buttons);
+        // FillWindowPixelBuffer(WIN_TOP_BOX, 0);
+        // AddTextPrinterParameterized3(WIN_TOP_BOX, 2, 0x10, 2, sWhiteTextColor, 0, gText_eviv_Tittle);
+        // AddTextPrinterParameterized3(WIN_TOP_BOX, 0, 0x98, 1, sWhiteTextColor, 0, gText_eviv_Buttons);
         break;
     case 5:
         PutWindowTilemap(WIN_TOP_BOX);
@@ -468,87 +815,269 @@ static void Task_WaitForExit(u8 taskId)
     case 1:
         if (gEvIv->lastIdx)
         {
-            if (JOY_REPT(DPAD_DOWN))
+if (FlagGet(FLAG_STAT_EDITOR_UNLOCKED))
+        {
+            if (JOY_NEW(A_BUTTON))
             {
-                if (gEvIv->isBoxMon)
+                if (!gInSelector && !gInEditor)
                 {
-                    monId =  SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->cursorPos, gEvIv->lastIdx, DIR_DOWN_2);
-                    if (monId == -1)//si llega al final, revise el primer elemento.
-                        monId = SeekToNextMonInBox(gEvIv->monList.boxMons, 1, gEvIv->lastIdx, DIR_UP_2);
-                    if (monId == -1)//si el primer elemento no tiene boxmon, revise desde el segundo en adelante.
-                        monId = SeekToNextMonInBox(gEvIv->monList.boxMons, 0, gEvIv->lastIdx, DIR_DOWN_2);
-                    if (gEvIv->cursorPos == monId)
-                        update_mon = FALSE;
-                    else
-                        gEvIv->cursorPos = monId;
+                    gInSelector = TRUE;
+                    PlaySE(5);
+                    CreateSandboxCursor();
                 }
-            #ifdef FIRERED
-                else if (IsUpdateLinkStateCBActive() == FALSE
-                    && gReceivedRemoteLinkPlayers == 1
-                    && IsMultiBattle() == TRUE)
-            #else //EMERALD
-                else if (IsMultiBattle() == TRUE)
-            #endif
+                else if(!gInEditor && gInSelector)
                 {
-                    gEvIv->cursorPos = AdvanceMultiBattleMonIndex(+1);
+                    PlaySE(5);
+                    gInEditor = TRUE;
+                    gInSelector = FALSE;
+                    DestroySprite(&gSprites[gCursorSpriteId]);
                 }
-                else
-                {
-                    if (gEvIv->cursorPos == gEvIv->lastIdx)
-                        gEvIv->cursorPos = 0;
-                    else
-                        gEvIv->cursorPos++;
-                }
-
-                if (update_mon)
-                    UpdateCurrentMon();
             }
-            else if (JOY_REPT(DPAD_UP))
+            if (JOY_NEW(B_BUTTON))
             {
-                if (gEvIv->isBoxMon)
+                if(!gInSelector && !gInEditor)
                 {
-                    monId =  SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->cursorPos, gEvIv->lastIdx, DIR_UP_2);
-                    if (monId == -1)//si llega al inicio, revise el último elemento.
-                        monId = SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->lastIdx -1, gEvIv->lastIdx, DIR_DOWN_2);
-                    if (monId == -1)//si el último elemento no tiene boxMon, revise desde el penúltimo hacia atrás
-                        monId = SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->lastIdx, gEvIv->lastIdx, DIR_UP_2);
-                    if (gEvIv->cursorPos == monId)
-                        update_mon = FALSE;
-                    else
-                        gEvIv->cursorPos = monId;
+                    PlaySE(242);
+                    DestroySprite(&gSprites[gCursorSpriteId]);
+                    BeginNormalPaletteFade(0xFFFFFFFF, 0, 0, 16, RGB_BLACK);
+                    for(u8 i = 0; i < gPlayerPartyCount; i++)
+                    {
+                        CalculateMonStatsNew(&gPlayerParty[i]);
+                        u8 max = GetMonData(&gPlayerParty[i], MON_DATA_MAX_HP, NULL);
+                        u8 curr = GetMonData(&gPlayerParty[i], MON_DATA_HP, NULL);
+                        if(curr > max)
+                        {
+                            SetMonData(&gPlayerParty[i], MON_DATA_HP, &max);
+                        }
+                    }
+                    gState++;
                 }
-            #ifdef FIRERED
-                else if (IsUpdateLinkStateCBActive() == FALSE
-                    && gReceivedRemoteLinkPlayers == 1
-                    && IsMultiBattle() == TRUE)
-            #else //EMERALD
-                else if (IsMultiBattle() == TRUE)
-            #endif
+                else if (gInEditor)
                 {
-                    gEvIv->cursorPos = AdvanceMultiBattleMonIndex(-1);
+                    PlaySE(5);
+                    gInEditor = FALSE;
+                    gInSelector = TRUE;
+                    CreateSandboxCursor();
+                    if(gSelectedColumn == 2)
+                        UpdateCursorSpritePos(gCursorSpriteId, 0xFF, FALSE, FALSE);
+                    
                 }
                 else
                 {
-                    if (gEvIv->cursorPos == 0)
-                        gEvIv->cursorPos = gEvIv->lastIdx;
-                    else
-                        gEvIv->cursorPos--;
+                    PlaySE(5);
+                    gInSelector = FALSE;
+                    DestroySprite(&gSprites[gCursorSpriteId]);
                 }
-
-                if (update_mon)
-                    UpdateCurrentMon();
+            }
+            if(JOY_NEW(R_BUTTON))
+            {
+                SandboxChangeNature(TRUE);
+            }
+            if(JOY_NEW(L_BUTTON))
+            {
+                SandboxChangeNature(FALSE);
+            }
+            if (!gInSelector && !gInEditor)
+            {
+                if (JOY_REPT(DPAD_DOWN) && gPlayerPartyCount > 1)
+                {
+                    if (gCurrentMon == (gPlayerPartyCount - 1))
+                        gCurrentMon = 0;
+                    else
+                        gCurrentMon++;
+                    HidePokemonPic2(gSpriteTaskId);
+                    ShowSprite(&gPlayerParty[gCurrentMon]);
+                    EvIvPrintText(&gPlayerParty[gCurrentMon]);
+                    PrintGenderText(&gPlayerParty[gCurrentMon]);
+                    //reset selected column & selected stat
+                    gSelectedColumn = 0;
+                    gSelectedStat = STAT_HP;
+                }
+                if (JOY_REPT(DPAD_UP) && gPlayerPartyCount > 1)
+                {
+                    if (gCurrentMon == 0)
+                        gCurrentMon = (gPlayerPartyCount - 1);
+                    else
+                        gCurrentMon--;
+                    HidePokemonPic2(gSpriteTaskId);
+                    ShowSprite(&gPlayerParty[gCurrentMon]);
+                    EvIvPrintText(&gPlayerParty[gCurrentMon]);
+                    PrintGenderText(&gPlayerParty[gCurrentMon]);
+                    //reset selected column & selected stat
+                    gSelectedColumn = 0;
+                    gSelectedStat = STAT_HP;
+                }
+            }
+            else if(gInSelector)
+            {
+                u8 resetY = FALSE;
+                if (JOY_NEW(START_BUTTON))
+                {
+                    FixOddEVs();
+                }
+                if (JOY_REPT(DPAD_DOWN))
+                {
+                    if(gSelectedColumn == 2 || gSelectedColumn == 3)
+                    {
+                        //dont do anything
+                    }
+                    else if(gSelectedStat == EDITOR_STAT_SPD)
+                        gSelectedStat = EDITOR_STAT_HP;
+                    else
+                        gSelectedStat++;
+                    if(gSelectedColumn != 2 && gSelectedColumn != 3)
+                        UpdateCursorSpritePos(gCursorSpriteId, gSelectedStat, FALSE, FALSE);
+                }
+                if (JOY_REPT(DPAD_UP))
+                {
+                    if(gSelectedColumn == 2 || gSelectedColumn == 3)
+                    {
+                        //dont do anything
+                    }
+                    else if(gSelectedStat == EDITOR_STAT_HP)
+                        gSelectedStat = EDITOR_STAT_SPD;
+                    else
+                        gSelectedStat--;
+                    if(gSelectedColumn != 2 && gSelectedColumn != 3)
+                        UpdateCursorSpritePos(gCursorSpriteId, gSelectedStat, TRUE, FALSE);
+                }
+                if (JOY_REPT(DPAD_LEFT))
+                {
+                    if(gSelectedColumn == 0)
+                        gSelectedColumn = (GetGenderFromSpeciesAndPersonality(gPlayerParty[gCurrentMon].species, gPlayerParty[gCurrentMon].personality) != MON_GENDERLESS) ? 3 : 2;
+                    else if(gSelectedColumn == 2)
+                    {
+                        gSelectedColumn = 1;
+                        resetY = TRUE;
+                        gSelectedStat = STAT_HP;
+                    }
+                    else
+                        gSelectedColumn--;
+                    UpdateCursorSpritePos(gCursorSpriteId, 0xFF, FALSE, resetY);
+                }
+                if (JOY_REPT(DPAD_RIGHT))
+                {
+                    if(GetGenderFromSpeciesAndPersonality(gPlayerParty[gCurrentMon].species, gPlayerParty[gCurrentMon].personality) == MON_GENDERLESS && gSelectedColumn == 2)
+                    {
+                        gSelectedColumn = 0;
+                        resetY = TRUE;
+                        gSelectedStat = STAT_HP;
+                    }
+                    else if(gSelectedColumn == 3)
+                    {
+                        gSelectedColumn = 0;
+                        resetY = TRUE;
+                        gSelectedStat = STAT_HP;
+                    }
+                    else
+                        gSelectedColumn++;
+                    UpdateCursorSpritePos(gCursorSpriteId, 0xFF, TRUE, resetY);
+                }
+            }
+            else if(gInEditor)
+            {
+                if (JOY_REPT(DPAD_LEFT))
+                {
+                    if(gSelectedColumn == 2)
+                        SandboxChangeAbility(FALSE);
+                    else if(gSelectedColumn == 3)
+                        SandboxChangeGender();
+                    else
+                        ChangeSelectedStat(gSelectedStat, gSelectedColumn == 0, FALSE);
+                }
+                if (JOY_REPT(DPAD_RIGHT))
+                {
+                    if(gSelectedColumn == 2)
+                        SandboxChangeAbility(TRUE);
+                    else if(gSelectedColumn == 3)
+                        SandboxChangeGender();
+                    else
+                        ChangeSelectedStat(gSelectedStat, gSelectedColumn == 0, TRUE);
+                } 
             }
         }
+        else {
+                if (JOY_REPT(DPAD_DOWN))
+                {
+                    if (gEvIv->isBoxMon)
+                    {
+                        monId =  SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->cursorPos, gEvIv->lastIdx, DIR_DOWN_2);
+                        if (monId == -1)//si llega al final, revise el primer elemento.
+                            monId = SeekToNextMonInBox(gEvIv->monList.boxMons, 1, gEvIv->lastIdx, DIR_UP_2);
+                        if (monId == -1)//si el primer elemento no tiene boxmon, revise desde el segundo en adelante.
+                            monId = SeekToNextMonInBox(gEvIv->monList.boxMons, 0, gEvIv->lastIdx, DIR_DOWN_2);
+                        if (gEvIv->cursorPos == monId)
+                            update_mon = FALSE;
+                        else
+                            gEvIv->cursorPos = monId;
+                    }
+                #ifdef FIRERED
+                    else if (IsUpdateLinkStateCBActive() == FALSE
+                        && gReceivedRemoteLinkPlayers == 1
+                        && IsMultiBattle() == TRUE)
+                #else //EMERALD
+                    else if (IsMultiBattle() == TRUE)
+                #endif
+                    {
+                        gEvIv->cursorPos = AdvanceMultiBattleMonIndex(+1);
+                    }
+                    else
+                    {
+                        if (gEvIv->cursorPos == gEvIv->lastIdx)
+                            gEvIv->cursorPos = 0;
+                        else
+                            gEvIv->cursorPos++;
+                    }
 
-        if (JOY_NEW(A_BUTTON) || JOY_NEW(B_BUTTON))
-        {
-#ifdef FIRERED
-            PlaySE(SE_CARD_FLIP);
-#else//EMERALD
-            PlaySE(SE_RG_CARD_FLIP);
-#endif
-            BeginNormalPaletteFade(0xFFFFFFFF, 0, 0, 16, RGB_BLACK);
-            gEvIv->state++;
+                    if (update_mon)
+                        UpdateCurrentMon();
+                }
+                else if (JOY_REPT(DPAD_UP))
+                {
+                    if (gEvIv->isBoxMon)
+                    {
+                        monId =  SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->cursorPos, gEvIv->lastIdx, DIR_UP_2);
+                        if (monId == -1)//si llega al inicio, revise el último elemento.
+                            monId = SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->lastIdx -1, gEvIv->lastIdx, DIR_DOWN_2);
+                        if (monId == -1)//si el último elemento no tiene boxMon, revise desde el penúltimo hacia atrás
+                            monId = SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->lastIdx, gEvIv->lastIdx, DIR_UP_2);
+                        if (gEvIv->cursorPos == monId)
+                            update_mon = FALSE;
+                        else
+                            gEvIv->cursorPos = monId;
+                    }
+                #ifdef FIRERED
+                    else if (IsUpdateLinkStateCBActive() == FALSE
+                        && gReceivedRemoteLinkPlayers == 1
+                        && IsMultiBattle() == TRUE)
+                #else //EMERALD
+                    else if (IsMultiBattle() == TRUE)
+                #endif
+                    {
+                        gEvIv->cursorPos = AdvanceMultiBattleMonIndex(-1);
+                    }
+                    else
+                    {
+                        if (gEvIv->cursorPos == 0)
+                            gEvIv->cursorPos = gEvIv->lastIdx;
+                        else
+                            gEvIv->cursorPos--;
+                    }
+
+                    if (update_mon)
+                        UpdateCurrentMon();
+                }
+
+            if (/*JOY_NEW(A_BUTTON) ||*/ JOY_NEW(B_BUTTON))
+            {
+    #ifdef FIRERED
+                PlaySE(SE_CARD_FLIP);
+    #else//EMERALD
+                PlaySE(SE_RG_CARD_FLIP);
+    #endif
+                BeginNormalPaletteFade(0xFFFFFFFF, 0, 0, 16, RGB_BLACK);
+                gEvIv->state++;
+            }
         }
         break;
     case 2:
@@ -917,8 +1446,8 @@ static void Task_ScriptShowMonPic(u8 taskId)
 */
 
 #define HP_X        4
-#define BS_X        54
-#define EV_X        BS_X + 30
+#define BS_X        60
+#define EV_X        BS_X + 26
 #define IV_X        EV_X + 30
 
 #define HP_Y        3
@@ -931,8 +1460,8 @@ static void Task_ScriptShowMonPic(u8 taskId)
 
 static void PrintWindow0(struct Pokemon *mon);
 static void PrintWindow1(u8 nature, u8 isEgg);
-static void PrintWindow2(u16 species, u8 isEgg, u8 friendship);
-static void PrintWindow_HiddenPower(u8 isEgg);
+static void PrintWindow2(u16 species, u8 isEgg, u8 friendship, struct Pokemon *mon);
+static void PrintWindow_HiddenPower(u8 isEgg, u8 friendship);
 
 static void EvIvPrintText(struct Pokemon *mon)
 {
@@ -992,19 +1521,20 @@ static void EvIvPrintText(struct Pokemon *mon)
     FillWindowPixelBuffer(WIN_POKEMON_NAME, 0);
     FillWindowPixelBuffer(WIN_STATS, 0);
     FillWindowPixelBuffer(WIN_BOTTOM_BOX, 0);
-    FillWindowPixelBuffer(WIN_HIDDEN_POWER, 0);
-    FillWindowPixelBuffer(WIN_TYPE, 0);
+    // FillWindowPixelBuffer(WIN_HIDDEN_POWER, 0);
+    // FillWindowPixelBuffer(WIN_TYPE, 0);
 
     PrintWindow0(mon);
     PrintWindow1(nature, isEgg);
-    PrintWindow2(species, isEgg, friendship);
-    PrintWindow_HiddenPower(isEgg);
+    PrintWindow2(species, isEgg, friendship, mon);
+    u8 friendship2 = GetMonData(mon, MON_DATA_FRIENDSHIP, NULL);
+    PrintWindow_HiddenPower(isEgg, friendship2);
 
     PutWindowTilemap(WIN_POKEMON_NAME);
     PutWindowTilemap(WIN_STATS);
     PutWindowTilemap(WIN_BOTTOM_BOX);
-    PutWindowTilemap(WIN_HIDDEN_POWER);
-    PutWindowTilemap(WIN_TYPE);
+    // PutWindowTilemap(WIN_HIDDEN_POWER);
+    // PutWindowTilemap(WIN_TYPE);
     CopyWindowToVram(WIN_TYPE, COPYWIN_GFX);
 }
 
@@ -1032,17 +1562,18 @@ static void PrintWindow0(struct Pokemon *mon)
     AddTextPrinterParameterized3(WIN_POKEMON_NAME, 2, 0x3C, 2, sGrayTextColor, 0, gText_BsEvIv);
 
     GetMonNickname(mon, gStringVar4);
-    AddTextPrinterParameterized3(WIN_POKEMON_NAME, 2, 0x90, 2, sGrayTextColor, 0, gStringVar4);
+    AddTextPrinterParameterized3(WIN_POKEMON_NAME, 2, 0x91, 2, sGrayTextColor, 0, gStringVar4);
+
 }
 
 static void PrintWindow1(u8 nature, u8 isEgg)
 {
-    AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, HP_Y,    sTextColorByNature[GetColorByNature(nature, STAT_HP)],    0, gText_eviv_Hp);
-    AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, ATK_Y,   sTextColorByNature[GetColorByNature(nature, STAT_ATK)],   0, gText_eviv_Atk);
-    AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, DEF_Y,   sTextColorByNature[GetColorByNature(nature, STAT_DEF)],   0, gText_eviv_Def);
-    AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, SPATK_Y, sTextColorByNature[GetColorByNature(nature, STAT_SPATK)], 0, gText_eviv_SpAtk);
-    AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, SPDEF_Y, sTextColorByNature[GetColorByNature(nature, STAT_SPDEF)], 0, gText_eviv_SpDef);
-    AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, SPEED_Y, sTextColorByNature[GetColorByNature(nature, STAT_SPEED)], 0, gText_eviv_Speed);
+    // AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, HP_Y,    sTextColorByNature[GetColorByNature(nature, STAT_HP)],    0, gText_eviv_Hp);
+    // AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, ATK_Y,   sTextColorByNature[GetColorByNature(nature, STAT_ATK)],   0, gText_eviv_Atk);
+    // AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, DEF_Y,   sTextColorByNature[GetColorByNature(nature, STAT_DEF)],   0, gText_eviv_Def);
+    // AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, SPATK_Y, sTextColorByNature[GetColorByNature(nature, STAT_SPATK)], 0, gText_eviv_SpAtk);
+    // AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, SPDEF_Y, sTextColorByNature[GetColorByNature(nature, STAT_SPDEF)], 0, gText_eviv_SpDef);
+    // AddTextPrinterParameterized3(WIN_STATS, 2, HP_X, SPEED_Y, sTextColorByNature[GetColorByNature(nature, STAT_SPEED)], 0, gText_eviv_Speed);
 
     if (!isEgg)
     {
@@ -1107,29 +1638,316 @@ static void PrintStat(u8 nature, u8 stat)
     }
 }
 
-static void PrintWindow2(u16 species, u8 isEgg, u8 friendship)
+static void PrintWindow2(u16 species, u8 isEgg, u8 friendship, struct Pokemon *mon)
 {
     u32 friendship_result = 0;
-
+    u16 temp = 0;
     if(!isEgg)
     {
         AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 2, 12, 4, sBlackTextColor, 0, gText_eviv_Total);
 
         ConvertIntToDecimalStringN(gStringVar1, gEvIv->totalStatsBS, STR_CONV_MODE_RIGHT_ALIGN, 3);
         ConvertIntToDecimalStringN(gStringVar2, gEvIv->totalStatsEV, STR_CONV_MODE_RIGHT_ALIGN, 3);
-        ConvertIntToDecimalStringN(gStringVar3, gEvIv->totalStatsIV, STR_CONV_MODE_RIGHT_ALIGN, 3);
+        // ConvertIntToDecimalStringN(gStringVar3, gEvIv->totalStatsIV, STR_CONV_MODE_RIGHT_ALIGN, 3);
         AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 2, BS_X, 4, sBlackTextColor, 0, gStringVar1);
         AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 2, EV_X, 4, sBlackTextColor, 0, gStringVar2);
-        AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 2, IV_X -6, 4, sBlackTextColor, 0, gStringVar3);
+        // AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 2, IV_X -6, 4, sBlackTextColor, 0, gStringVar3);
 
-        StringCopy(gStringVar4, gText_Happy);
+        StringCopy(gStringVar3, gText_Happy);
+        temp = friendship;
+        ConvertIntToDecimalStringN(gStringVar2, temp, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(temp));
+        StringAppend(gStringVar3, gStringVar2);
+        StringAppend(gStringVar3, gText_Lv);
+        u8 level = GetMonData(mon, MON_DATA_LEVEL);
+        ConvertIntToDecimalStringN(gStringVar1, level, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(level));
+        StringAppend(gStringVar3, gStringVar1);
+        StringAppend(gStringVar3, gText_eviv_Slash);
+        level = GetCurrentLevelCap();
+        ConvertIntToDecimalStringN(gStringVar1, level, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(level));
+        StringAppend(gStringVar3, gStringVar1);
+        AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 0, IV_X -5,4,  sBlackTextColor, 0, gStringVar3);
+
         
-        friendship_result = (friendship * 100) / 0xFF;
-        ConvertIntToDecimalStringN(gStringVar2, friendship_result, STR_CONV_MODE_LEFT_ALIGN, 3);
-        StringAppend(gStringVar4, gStringVar2);
+        u16 evoMethod = gEvolutionTable[species][0].method;
+        StringCopy(gStringVar4, gText_Tu);
+        if (species == SPECIES_EEVEE ) {
+                StringAppend(gStringVar4,  gText_EvolvesVariousWays);
+        } else if (species == SPECIES_GLOOM || species == SPECIES_PETILIL || species == SPECIES_EXEGGCUTE ){
+                StringAppend(gStringVar4, gText_EvoItem); 
+                StringAppend(gStringVar4, gText_EvoItemLeafStone);
+                StringAppend(gStringVar4, gText_EvoOr);
+                StringAppend(gStringVar4, gText_EvoItemSunStone);
+        }
+        else if (species == SPECIES_APPLIN ){
+                StringAppend(gStringVar4, gText_EvoApplin); 
+        }
+        else if (species == SPECIES_SLOWPOKE || species == SPECIES_SLOWPOKE_G){
+                StringAppend(gStringVar4, gText_EvolvesLevel); 
+                StringAppend(gStringVar4, gText_EvoSlowpokeStuff);
+        }
+        else if (species == SPECIES_SCYTHER){
+                StringAppend(gStringVar4, gText_EvoItem); 
+                StringAppend(gStringVar4, gText_EvoItemMetalCoat);
+                StringAppend(gStringVar4, gText_EvoOr);
+                StringAppend(gStringVar4, gText_EvoItemKingsRock);
+                StringAppend(gStringVar4, gText_Period);
+        }
+        else if (species == SPECIES_PIKACHU){
+                StringAppend(gStringVar4, gText_EvoItem); 
+                StringAppend(gStringVar4, gText_PikachuStuff);
+        }
+        else if (species == SPECIES_KIRLIA){
+                StringAppend(gStringVar4, gText_EvolvesLevel); 
+                StringAppend(gStringVar4, gText_EvoKirliaStuff);
+        }
+        else if (species == SPECIES_SNORUNT){
+                StringAppend(gStringVar4, gText_EvolvesLevel); 
+                StringAppend(gStringVar4, gText_EvoSnoruntStuff);
+        }
+        else if (species == SPECIES_POLIWHIRL){
+                StringAppend(gStringVar4, gText_EvoItem); 
+                StringAppend(gStringVar4, gText_EvoItemWaterStone);
+                StringAppend(gStringVar4, gText_EvoOr);
+                StringAppend(gStringVar4, gText_EvoItemKingsRock);
+        }
+        else if (species == SPECIES_CLAMPERL){
+                StringAppend(gStringVar4, gText_EvoItem); 
+                StringAppend(gStringVar4, gText_EvoItemWaterStone);
+                StringAppend(gStringVar4, gText_EvoOr);
+                StringAppend(gStringVar4, gText_EvoItemSunStone);
+        }
+        else if (species == SPECIES_KUBFU){
+                StringAppend(gStringVar4, gText_EvoItem); 
+                StringAppend(gStringVar4, gText_EvoItemWaterStone);
+                StringAppend(gStringVar4, gText_EvoOr);
+                StringAppend(gStringVar4, gText_EvoItemDuskStone);
+        }
+        else if (species == SPECIES_CHARCADET){
+                StringAppend(gStringVar4, gText_EvoItem); 
+                StringAppend(gStringVar4, gText_EvoItemSunStone);
+                StringAppend(gStringVar4, gText_EvoOr);
+                StringAppend(gStringVar4, gText_EvoItemMoonStone);
+        }
+        else if (species == SPECIES_QUILAVA || species == SPECIES_DARTRIX || species == SPECIES_DEWOTT || species == SPECIES_RUFFLET || species == SPECIES_CUBONE || species == SPECIES_ROCKRUFF || species == SPECIES_KOFFING || species == SPECIES_COSMOEM){
+                StringAppend(gStringVar4, gText_EvolvesLevel); 
+                temp = gEvolutionTable[species][0].param;
+                ConvertIntToDecimalStringN(gStringVar2, temp, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(temp));
+                StringAppend(gStringVar4, gStringVar2);
+                // AddNumInto_gStringVar4(temp);
+                StringAppend(gStringVar4, gText_DependingOnTimeOfDay);
+        }
+        else if (species == SPECIES_BERGMITE){
+                StringAppend(gStringVar4, gText_EvolvesLevel); 
+                StringAppend(gStringVar4, gText_EvoAvaluggStuff);
+        }
+        else if (species == SPECIES_GOOMY){
+                StringAppend(gStringVar4, gText_EvolvesLevel); 
+                StringAppend(gStringVar4, gText_EvoGoomyStuff);
+        }
+        else if (species == SPECIES_MIME_JR){
+            StringAppend(gStringVar4, gText_EvoWhenKnowing); 
+            StringAppend(gStringVar4, gText_EvoMimic); 
+            StringAppend(gStringVar4, gText_EvoMimeJrStuff); 
+        }
+
+        else {
+            switch (evoMethod) {
+                case EVO_LEVEL:
+                case EVO_LEVEL_ATK_GT_DEF:
+                case EVO_LEVEL_ATK_EQ_DEF:
+                case EVO_LEVEL_ATK_LT_DEF:
+                case EVO_LEVEL_SILCOON:
+                case EVO_LEVEL_CASCOON:
+                case EVO_LEVEL_NINJASK:
+                case EVO_NATURE_TOXTRICITY:
+                case EVO_NATURE_LOWKEY:
+                case EVO_LEVEL_SPECIFIC_TIME_RANGE:
+                case EVO_MALE_LEVEL:
+                case EVO_FEMALE_LEVEL:
+                case EVO_TYPE_IN_PARTY:
+                case EVO_LEVEL_DAY:
+                case EVO_LEVEL_NIGHT:
+                    StringAppend(gStringVar4, gText_EvolvesLevel);
+                    temp = gEvolutionTable[species][0].param;
+                    ConvertIntToDecimalStringN(gStringVar2, temp, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(temp));
+                    StringAppend(gStringVar4, gStringVar2);
+                    switch (evoMethod){
+                        case (EVO_MALE_LEVEL):
+                            if (species == SPECIES_BASCULIN_RED || species == SPECIES_BASCULIN_BLUE || species == SPECIES_ESPURR ) {
+                                StringAppend(gStringVar4, gText_EvoGenderDepend);
+                            }
+                            else 
+                                StringAppend(gStringVar4, gText_EvoIfMale);
+                            break;
+                        case (EVO_FEMALE_LEVEL):
+                            if (species == SPECIES_BURMY_TRASH || species == SPECIES_BURMY || species == SPECIES_BURMY_SANDY || species == SPECIES_LECHONK ) {
+                                StringAppend(gStringVar4, gText_EvoGenderDepend);
+                            }
+                            else 
+                                StringAppend(gStringVar4, gText_EvoIfFemale);
+                            break;
+                        case (EVO_TYPE_IN_PARTY ):
+                            //only pancham rn
+                            StringAppend(gStringVar4, gText_EvoMethodIf);
+                            StringAppend(gStringVar4, gText_EvoMethodDark);
+                            StringAppend(gStringVar4, gText_EvoTypeInParty);
+                            break;
+                        case (EVO_LEVEL_DAY):
+                            if (species != SPECIES_COSMOEM) {
+                                StringAppend(gStringVar4, gText_EvoIfDay);
+                            } 
+                            break;
+                        case (EVO_LEVEL_NIGHT):
+                            StringAppend(gStringVar4, gText_EvoIfNight);
+                            break;
+                    }
+                    StringAppend(gStringVar4, gText_Period);
+                    break;
+    
+                case EVO_MOVE:
+                    StringAppend(gStringVar4, gText_EvoWhenKnowing);
+                    temp = gEvolutionTable[species][0].param;
+                    switch (temp) {
+                        case MOVE_ANCIENTPOWER:
+                            StringAppend(gStringVar4, gText_EvoAncientPower); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case MOVE_DOUBLEHIT:
+                            StringAppend(gStringVar4, gText_EvoDoubleHit); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case MOVE_MIMIC:
+                            StringAppend(gStringVar4, gText_EvoMimic); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case MOVE_STOMP:
+                            StringAppend(gStringVar4, gText_EvoStomp); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case MOVE_DRAGONPULSE:
+                            StringAppend(gStringVar4, gText_EvoDragonPulse); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case MOVE_TAUNT:
+                            StringAppend(gStringVar4, gText_EvoTaunt); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case MOVE_SHADOWPUNCH:
+                            StringAppend(gStringVar4, gText_EvoShadowPunch); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case MOVE_HYPERDRILL:
+                            StringAppend(gStringVar4, gText_EvoHyperDrill); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case MOVE_TWINBEAM:
+                            StringAppend(gStringVar4, gText_EvoTwinBeam); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case MOVE_ROLLOUT:
+                            StringAppend(gStringVar4, gText_EvoRollout); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                    }
+                    break;
+
+                case EVO_ITEM:
+                    StringAppend(gStringVar4, gText_EvoItem); 
+                    temp = gEvolutionTable[species][0].param;
+                    switch(temp) {
+                        case ITEM_LINK_CABLE:
+                            StringAppend(gStringVar4, gText_EvoItemLinkCable); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_SUN_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemSunStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_MOON_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemMoonStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_FIRE_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemFireStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_THUNDER_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemThunderStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_WATER_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemWaterStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_LEAF_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemLeafStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_SHINY_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemShinyStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_DUSK_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemDuskStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_DAWN_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemDawnStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_ICE_STONE:
+                            StringAppend(gStringVar4, gText_EvoItemIceStone); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_UP_GRADE:
+                            StringAppend(gStringVar4, gText_EvoItemUpgrade); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_KINGS_ROCK:
+                            StringAppend(gStringVar4, gText_EvoItemKingsRock); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_METAL_COAT:
+                            StringAppend(gStringVar4, gText_EvoItemMetalCoat); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                        case ITEM_PRISM_SCALE:
+                            StringAppend(gStringVar4, gText_EvoItemPrismScale); 
+                            StringAppend(gStringVar4, gText_Period);
+                            break;
+                    }
+                    break;
+
+                case EVO_FRIENDSHIP:
+                    StringAppend(gStringVar4, gText_EvosFriendship); 
+                    break;
+                case EVO_FRIENDSHIP_DAY:
+                    StringAppend(gStringVar4, gText_EvolvesFriendshipDay);
+                    break;
+                case EVO_FRIENDSHIP_NIGHT:
+                    StringAppend(gStringVar4, gText_EvolvesFriendshipNight);
+                    break;
+                case EVO_RAINY_FOGGY_OW:
+                    StringAppend(gStringVar4, gText_EvolvesLevel);
+                    temp = gEvolutionTable[species][0].param;
+                    ConvertIntToDecimalStringN(gStringVar2, temp, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(temp));
+                    StringAppend(gStringVar4, gStringVar2);
+                    StringAppend(gStringVar4, gText_inRain);
+                    break;
+                default:
+                    StringAppend(gStringVar4, gText_NoEvolution);
+                    break;
+            }
+        }
+        // AddTextPrinterParameterized3(2, 0x2, 0x7, 0x11, sBlackTextColor, 0, gStringVar4);
+        // StringCopy(gStringVar4, gText_Happy);
         
-        StringAppend(gStringVar4, gText_Percent);
-        AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 2, 14, 18, sBlackTextColor, 0, gStringVar4);
+        // friendship_result = (friendship * 100) / 0xFF;
+        // ConvertIntToDecimalStringN(gStringVar2, friendship_result, STR_CONV_MODE_LEFT_ALIGN, 3);
+        // StringAppend(gStringVar4, gStringVar2);
+        
+        // StringAppend(gStringVar4, gText_Percent);
+        AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 0, 7, 18, sBlackTextColor, 0, gStringVar4);
         
     }else
     {
@@ -1139,69 +1957,72 @@ static void PrintWindow2(u16 species, u8 isEgg, u8 friendship)
         StringCopy(gStringVar4, gText_Steps_to_hatching);
         ConvertIntToDecimalStringN(gStringVar2, friendship_result, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(friendship_result));
         StringAppend(gStringVar4, gStringVar2);
-        AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 2, 14, 4, sBlackTextColor, 0, gStringVar4);
+        AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 0, 7, 4, sBlackTextColor, 0, gStringVar4);
     }
 }
 
-static u8 GetPower_HiddenPower(void)
+// static u8 GetPower_HiddenPower(void)
+// {
+// #if HIDDEN_POWER_STATIC
+// 	return HIDDEN_POWER_BASE_POWER;
+// #else
+//     s32 powerBits;
+
+//     powerBits = ((gEvIv->stats_iv[STAT_HP] & 2) >> 1)
+//               | ((gEvIv->stats_iv[STAT_ATK] & 2) << 0)
+//               | ((gEvIv->stats_iv[STAT_DEF] & 2) << 1)
+//               | ((gEvIv->stats_iv[STAT_SPEED] & 2) << 2)
+//               | ((gEvIv->stats_iv[STAT_SPATK] & 2) << 3)
+//               | ((gEvIv->stats_iv[STAT_SPDEF] & 2) << 4);
+
+//     return (40 * powerBits) / 63 + 30;
+// #endif
+// }
+
+// static u8 GetType_HiddenPower(void)
+// {
+//     u8 type;
+//     s32 typeBits;
+
+//     typeBits  = ((gEvIv->stats_iv[STAT_HP] & 1) << 0)
+//               | ((gEvIv->stats_iv[STAT_ATK] & 1) << 1)
+//               | ((gEvIv->stats_iv[STAT_DEF] & 1) << 2)
+//               | ((gEvIv->stats_iv[STAT_SPEED] & 1) << 3)
+//               | ((gEvIv->stats_iv[STAT_SPATK] & 1) << 4)
+//               | ((gEvIv->stats_iv[STAT_SPDEF] & 1) << 5);
+
+//     type = (15 * typeBits) / 63 + 1;
+
+//     if (type >= TYPE_MYSTERY)
+//         type++;
+
+//     return type;
+// }
+
+static void PrintWindow_HiddenPower(u8 isEgg, u8 friendship)
 {
-#if HIDDEN_POWER_STATIC
-	return HIDDEN_POWER_BASE_POWER;
-#else
-    s32 powerBits;
+    // u8 power = GetPower_HiddenPower();
+    // u8 type = GetType_HiddenPower();
 
-    powerBits = ((gEvIv->stats_iv[STAT_HP] & 2) >> 1)
-              | ((gEvIv->stats_iv[STAT_ATK] & 2) << 0)
-              | ((gEvIv->stats_iv[STAT_DEF] & 2) << 1)
-              | ((gEvIv->stats_iv[STAT_SPEED] & 2) << 2)
-              | ((gEvIv->stats_iv[STAT_SPATK] & 2) << 3)
-              | ((gEvIv->stats_iv[STAT_SPDEF] & 2) << 4);
-
-    return (40 * powerBits) / 63 + 30;
-#endif
-}
-
-static u8 GetType_HiddenPower(void)
-{
-    u8 type;
-    s32 typeBits;
-
-    typeBits  = ((gEvIv->stats_iv[STAT_HP] & 1) << 0)
-              | ((gEvIv->stats_iv[STAT_ATK] & 1) << 1)
-              | ((gEvIv->stats_iv[STAT_DEF] & 1) << 2)
-              | ((gEvIv->stats_iv[STAT_SPEED] & 1) << 3)
-              | ((gEvIv->stats_iv[STAT_SPATK] & 1) << 4)
-              | ((gEvIv->stats_iv[STAT_SPDEF] & 1) << 5);
-
-    type = (15 * typeBits) / 63 + 1;
-
-    if (type >= TYPE_MYSTERY)
-        type++;
-
-    return type;
-}
-
-static void PrintWindow_HiddenPower(u8 isEgg)
-{
-    u8 power = GetPower_HiddenPower();
-    u8 type = GetType_HiddenPower();
-
-    const u8 gText_q[2] = _("?");
+    // const u8 gText_q[2] = _("?");
 
     StringCopy(gStringVar4, gText_HiddenPower);
+    StringCopy(gStringVar4, gText_Happy);
+    u32 temp = friendship;
+    ConvertIntToDecimalStringN(gStringVar2, temp, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(temp));
+    StringAppend(gStringVar4, gStringVar2);
+    AddTextPrinterParameterized3(WIN_HIDDEN_POWER, 0, 4, 3, sBlackTextColor, 0, gStringVar4);
 
-    AddTextPrinterParameterized3(WIN_HIDDEN_POWER, 0, 4, 3, sWhiteTextColor, 0, gStringVar4);
-
-    if (!isEgg)
-    {
-        ConvertIntToDecimalStringN(gStringVar1, power, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(power));
-        StringCopy(gStringVar4, gText_Power);
-        StringAppend(gStringVar4, gStringVar1);
-        AddTextPrinterParameterized3(WIN_HIDDEN_POWER, 0, 16, 16, sWhiteTextColor, 0, gStringVar4);
-        BlitMoveInfoIcon(WIN_TYPE, type + 1, 2, 4);
-    }
-    else
-        AddTextPrinterParameterized3(WIN_HIDDEN_POWER, 0, 32, 16, sWhiteTextColor, 0, gText_q);
+    // if (!isEgg)
+    // {
+    //     ConvertIntToDecimalStringN(gStringVar1, power, STR_CONV_MODE_LEFT_ALIGN, GetDigitsDec(power));
+    //     StringCopy(gStringVar4, gText_Power);
+    //     StringAppend(gStringVar4, gStringVar1);
+    //     AddTextPrinterParameterized3(WIN_HIDDEN_POWER, 0, 16, 16, sWhiteTextColor, 0, gStringVar4);
+    //     BlitMoveInfoIcon(WIN_TYPE, type + 1, 2, 4);
+    // }
+    // else
+    //     AddTextPrinterParameterized3(WIN_HIDDEN_POWER, 0, 32, 16, sWhiteTextColor, 0, gText_q);
 }
 
 /**
@@ -1401,7 +2222,7 @@ void New_Task_InputHandler_Info(u8 taskId)
                     PlaySE(SE_SELECT);
                     sMonSummaryScreen->state3270 = PSS_STATE3270_ATEXIT_FADEOUT;
                 }
-                else if (sMonSummaryScreen->curPageIndex == PSS_PAGE_SKILLS && FlagGet(FLAG_EV_IV))
+                else if (sMonSummaryScreen->curPageIndex == PSS_PAGE_SKILLS && FlagGet(FLAG_EV_IV) && !FlagGet(0x908) && !gMain.inBattle)
                 {
                     sMonSummaryScreen->state3270 = PSS_STATE3270_EV_IV;
                     BeginNormalPaletteFade(0xffffffff, 0, 0, 16, RGB_BLACK);
@@ -1473,7 +2294,8 @@ extern void PrintMonLevelNickOnWindow2(const u8 * str);
 void PokeSum_PrintPageHeaderText_new(void)
 {
     PokeSum_PrintPageName(gText_PokeSum_PageName_PokemonSkills);
-    if (FlagGet(FLAG_EV_IV))
+
+    if (FlagGet(FLAG_EV_IV) && !FlagGet(0x908) && !gMain.inBattle)
         PokeSum_PrintControlsString(gText_PokeSum_Controls_Page_EvIv);
     else
         PokeSum_PrintControlsString(gText_PokeSum_Controls_Page);
@@ -1541,7 +2363,7 @@ void Task_HandleInput(u8 taskId)
                     SwitchToMoveSelection(taskId);
                 }
             }
-            else if (FlagGet(FLAG_EV_IV))
+            else if (FlagGet(FLAG_EV_IV)&& !FlagGet(0x908) && !gMain.inBattle)
             {
                 //StopPokemonAnimations();
                 PlaySE(SE_RG_CARD_OPEN);
@@ -1593,7 +2415,7 @@ void PutPageWindowTilemaps(u8 page)
     switch (page)
     {
     case PSS_PAGE_INFO:
-        if (FlagGet(FLAG_EV_IV))
+        if (FlagGet(FLAG_EV_IV) && !FlagGet(0x908) && !gMain.inBattle)
         {
             FillWindowPixelBuffer(PSS_LABEL_WINDOW_PROMPT_CANCEL, PIXEL_FILL(0));
             stringXPos = GetStringRightAlignXOffset(FONT_NORMAL, gText_Cancel2, 62);
@@ -1611,7 +2433,7 @@ void PutPageWindowTilemaps(u8 page)
         PutWindowTilemap(PSS_LABEL_WINDOW_POKEMON_INFO_TYPE);
         break;
     case PSS_PAGE_SKILLS:
-        if (FlagGet(FLAG_EV_IV))
+        if (FlagGet(FLAG_EV_IV) && !FlagGet(0x908) && !gMain.inBattle )
         {
             FillWindowPixelBuffer(PSS_LABEL_WINDOW_PROMPT_CANCEL, PIXEL_FILL(0));
             stringXPos = GetStringRightAlignXOffset(FONT_NORMAL, gText_PokeSum_EvIv, 62);
@@ -1660,7 +2482,6 @@ void PutPageWindowTilemaps(u8 page)
     ScheduleBgCopyTilemapToVram(0);
 }
 
-
 void ClearPageWindowTilemaps(u8 page)
 {
     u8 i;
@@ -1674,7 +2495,7 @@ void ClearPageWindowTilemaps(u8 page)
         ClearWindowTilemap(PSS_LABEL_WINDOW_POKEMON_INFO_TYPE);
         break;
     case PSS_PAGE_SKILLS:
-        if (FlagGet(FLAG_EV_IV))
+        if (FlagGet(FLAG_EV_IV) && !FlagGet(0x908) && !gMain.inBattle)
             ClearWindowTilemap(PSS_LABEL_WINDOW_PROMPT_CANCEL);
 
         ClearWindowTilemap(PSS_LABEL_WINDOW_POKEMON_SKILLS_STATS_LEFT);
