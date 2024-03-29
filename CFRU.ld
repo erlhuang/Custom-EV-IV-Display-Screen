@@ -148,3 +148,10 @@ LoadSpriteSheet = 0x80086DC | 1;
 LoadSpritePalette = 0x8008928 | 1;
 gDummySpriteAffineAnimTable = 0x8231CFC;
 DestroySprite = 0x8007280 | 1;
+
+FillWindowPixelRect = 0x8004378 | 1;
+GetGenderFromSpeciesAndPersonality = 0x803F78C | 1;
+SetMonData = 0x804037C | 1;
+
+/*below needs to be dynamically changed*/
+CalculateMonStatsNew = 0x90789A8 | 1; 

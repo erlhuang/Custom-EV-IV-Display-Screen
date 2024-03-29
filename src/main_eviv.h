@@ -97,7 +97,6 @@ struct EvIvDisplayScreen
 #define gSelectedStat       gEvIv->selectedStat
 #define gCursorSpriteId     gEvIv->cursorSpriteId
 extern struct EvIvDisplayScreen *gEvIv;
-static void SpriteCB_SandboxCursor(struct Sprite* sprite);
 
 #ifdef EMERALD
 //EMERALD
@@ -330,10 +329,20 @@ struct PokemonSummaryScreenData
 //static EWRAM_DATA 
 extern struct PokemonSummaryScreenData * sMonSummaryScreen;
 
+
 //static EWRAM_DATA 
 extern u8 sLastViewedMonIndex;
 
+void CalculateMonStatsNew(struct Pokemon *mon);
 //static 
 extern void PokeSum_RemoveWindows(u8 curPageIndex);
 
 extern s16 SeekToNextMonInBox(struct BoxPokemon * boxMons, u8 curIndex, u8 maxIndex, u8 flags);
+
+#define EDITOR_STAT_HP         0
+#define EDITOR_STAT_ATK        1
+#define EDITOR_STAT_DEF        2
+#define EDITOR_STAT_SPATK      3
+#define EDITOR_STAT_SPDEF      4
+#define EDITOR_STAT_SPD        5
+

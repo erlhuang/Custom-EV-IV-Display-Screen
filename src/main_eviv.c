@@ -171,7 +171,7 @@ enum EvolutionMethods
 //coordenada y del sprite pokémon, se mide en tiles de 8 pixeles
 //y coordinate of the pokémon sprite, measured in tiles of 8 pixels
 #define PICMON_Y     5
-
+#define FLAG_MINIMAL_GRINDING_MODE 0x1032
 // ------------------------------------------------------------------ 
 //                           FIRE RED/ROJOFUEGO     EMERALD/ESMERALDA
 // FLAG_SYS_POKEMON_GET      0x828                  0x860
@@ -190,12 +190,17 @@ enum EvolutionMethods
 static void Task_EvIvInit(u8);
 static u8 EvIvLoadGfx(void);
 static void EvIvVblankHandler(void);
+static void UpdateCursorSpritePos(u16 spriteId, u8 stat, bool8 goingUp, bool8 resetY); 
+
 static void Task_WaitForExit(u8);
+static void ChangeSelectedStat(u8 stat, u8 ev, bool8 increase);
 static void UpdateCurrentMon(void);
 static void Task_EvIvReturn(u8);
 static void BufferMonData(struct Pokemon * mon);
 static s8 AdvanceMultiBattleMonIndex(s8 direction);
 static void ShowSprite(struct Pokemon *mon);
+static void MiniEvIvPrintText(struct Pokemon *mon, bool8 ev, u8 stat, u8 newValue, u8 stat2, bool8 fixev);
+
 static void EvIvPrintText(struct Pokemon *mon);
 static void ShowPokemonPic2(u16 species, u32 otId, u32 personality, u8 x, u8 y);
 static void Task_ScriptShowMonPic(u8 taskId);
@@ -206,6 +211,7 @@ static u8 GetDigitsDec(u32 num);
 static u8 GetDigitsHex(u32 num);
 static u8 GetColorByNature(u8 nature, u8 statIndex);
 static u8 GetCurrentLevelCap(void); 
+static void FixOddEVs(void);
 #define EVS             0
 #define IVS             1
 #define ABILITY_EDIT    2
@@ -571,6 +577,7 @@ static u8 GetCurrentLevelCap(void)
 
 #define SELECTION_CURSOR_TAG 0x200
 
+static void SpriteCB_SandboxCursor(struct Sprite* sprite);
 static const struct OamData sCursorOam =
 {
 	.affineMode = ST_OAM_AFFINE_OFF,
@@ -813,10 +820,7 @@ static void Task_WaitForExit(u8 taskId)
         gEvIv->state++;
         break;
     case 1:
-        if (gEvIv->lastIdx)
-        {
-if (FlagGet(FLAG_STAT_EDITOR_UNLOCKED))
-        {
+        if (FlagGet(FLAG_EV_IV) && !(FlagGet(FLAG_MINIMAL_GRINDING_MODE) && !(gEvIv->isBoxMon))){
             if (JOY_NEW(A_BUTTON))
             {
                 if (!gInSelector && !gInEditor)
@@ -843,12 +847,12 @@ if (FlagGet(FLAG_STAT_EDITOR_UNLOCKED))
                     for(u8 i = 0; i < gPlayerPartyCount; i++)
                     {
                         CalculateMonStatsNew(&gPlayerParty[i]);
-                        u8 max = GetMonData(&gPlayerParty[i], MON_DATA_MAX_HP, NULL);
-                        u8 curr = GetMonData(&gPlayerParty[i], MON_DATA_HP, NULL);
-                        if(curr > max)
-                        {
-                            SetMonData(&gPlayerParty[i], MON_DATA_HP, &max);
-                        }
+                        // u8 max = GetMonData(&gPlayerParty[i], MON_DATA_MAX_HP);
+                        // u8 curr = GetMonData(&gPlayerParty[i], MON_DATA_HP);
+                        // if(curr > max)
+                        // {
+                        //     SetMonData(&gPlayerParty[i], MON_DATA_HP, &max);
+                        // }
                     }
                     gState++;
                 }
@@ -869,43 +873,48 @@ if (FlagGet(FLAG_STAT_EDITOR_UNLOCKED))
                     DestroySprite(&gSprites[gCursorSpriteId]);
                 }
             }
-            if(JOY_NEW(R_BUTTON))
-            {
-                SandboxChangeNature(TRUE);
-            }
-            if(JOY_NEW(L_BUTTON))
-            {
-                SandboxChangeNature(FALSE);
-            }
+            // if(JOY_NEW(R_BUTTON))
+            // {
+            //     SandboxChangeNature(TRUE);
+            // }
+            // if(JOY_NEW(L_BUTTON))
+            // {
+            //     SandboxChangeNature(FALSE);
+            // }
             if (!gInSelector && !gInEditor)
             {
                 if (JOY_REPT(DPAD_DOWN) && gPlayerPartyCount > 1)
                 {
-                    if (gCurrentMon == (gPlayerPartyCount - 1))
-                        gCurrentMon = 0;
+                    if (gEvIv->cursorPos == gEvIv->lastIdx)
+                        gEvIv->cursorPos = 0;
                     else
-                        gCurrentMon++;
-                    HidePokemonPic2(gSpriteTaskId);
-                    ShowSprite(&gPlayerParty[gCurrentMon]);
-                    EvIvPrintText(&gPlayerParty[gCurrentMon]);
-                    PrintGenderText(&gPlayerParty[gCurrentMon]);
+                        gEvIv->cursorPos++;
+                    if (update_mon)
+                        UpdateCurrentMon();
+                    // HidePokemonPic2(gSpriteTaskId);
+                    // ShowSprite(&gEvIv->currentMon);
+                    // EvIvPrintText(&gEvIv->currentMon);
+                    // PrintGenderText(&gEvIv->currentMon);
                     //reset selected column & selected stat
                     gSelectedColumn = 0;
                     gSelectedStat = STAT_HP;
                 }
                 if (JOY_REPT(DPAD_UP) && gPlayerPartyCount > 1)
                 {
-                    if (gCurrentMon == 0)
-                        gCurrentMon = (gPlayerPartyCount - 1);
+                    if (gEvIv->cursorPos == 0)
+                        gEvIv->cursorPos = gEvIv->lastIdx;
                     else
-                        gCurrentMon--;
-                    HidePokemonPic2(gSpriteTaskId);
-                    ShowSprite(&gPlayerParty[gCurrentMon]);
-                    EvIvPrintText(&gPlayerParty[gCurrentMon]);
-                    PrintGenderText(&gPlayerParty[gCurrentMon]);
+                        gEvIv->cursorPos--;
+                    if (update_mon)
+                        UpdateCurrentMon();
+                    // HidePokemonPic2(gSpriteTaskId);
+                    // ShowSprite(&gEvIv->currentMon);
+                    // EvIvPrintText(&gEvIv->currentMon);
+                    // PrintGenderText(&gEvIv->currentMon);
                     //reset selected column & selected stat
                     gSelectedColumn = 0;
                     gSelectedStat = STAT_HP;
+
                 }
             }
             else if(gInSelector)
@@ -943,9 +952,9 @@ if (FlagGet(FLAG_STAT_EDITOR_UNLOCKED))
                 }
                 if (JOY_REPT(DPAD_LEFT))
                 {
-                    if(gSelectedColumn == 0)
-                        gSelectedColumn = (GetGenderFromSpeciesAndPersonality(gPlayerParty[gCurrentMon].species, gPlayerParty[gCurrentMon].personality) != MON_GENDERLESS) ? 3 : 2;
-                    else if(gSelectedColumn == 2)
+                    // if(gSelectedColumn == 0)
+                    //     gSelectedColumn = (GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) != MON_GENDERLESS) ? 3 : 2;
+                    if(gSelectedColumn == 2)
                     {
                         gSelectedColumn = 1;
                         resetY = TRUE;
@@ -957,7 +966,7 @@ if (FlagGet(FLAG_STAT_EDITOR_UNLOCKED))
                 }
                 if (JOY_REPT(DPAD_RIGHT))
                 {
-                    if(GetGenderFromSpeciesAndPersonality(gPlayerParty[gCurrentMon].species, gPlayerParty[gCurrentMon].personality) == MON_GENDERLESS && gSelectedColumn == 2)
+                    if(/*GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) == MON_GENDERLESS &&*/ gSelectedColumn == 2)
                     {
                         gSelectedColumn = 0;
                         resetY = TRUE;
@@ -978,113 +987,217 @@ if (FlagGet(FLAG_STAT_EDITOR_UNLOCKED))
             {
                 if (JOY_REPT(DPAD_LEFT))
                 {
-                    if(gSelectedColumn == 2)
-                        SandboxChangeAbility(FALSE);
-                    else if(gSelectedColumn == 3)
-                        SandboxChangeGender();
-                    else
-                        ChangeSelectedStat(gSelectedStat, gSelectedColumn == 0, FALSE);
+                    // if(gSelectedColumn == 2)
+                    //     SandboxChangeAbility(FALSE);
+                    // else if(gSelectedColumn == 3)
+                    //     SandboxChangeGender();
+                    // else
+                    ChangeSelectedStat(gSelectedStat, gSelectedColumn == 0, FALSE);
                 }
                 if (JOY_REPT(DPAD_RIGHT))
                 {
-                    if(gSelectedColumn == 2)
-                        SandboxChangeAbility(TRUE);
-                    else if(gSelectedColumn == 3)
-                        SandboxChangeGender();
-                    else
-                        ChangeSelectedStat(gSelectedStat, gSelectedColumn == 0, TRUE);
+                    // if(gSelectedColumn == 2)
+                    //     SandboxChangeAbility(TRUE);
+                    // else if(gSelectedColumn == 3)
+                    //     SandboxChangeGender();
+                    // else
+                    ChangeSelectedStat(gSelectedStat, gSelectedColumn == 0, TRUE);
                 } 
             }
         }
-        else {
-                if (JOY_REPT(DPAD_DOWN))
-                {
-                    if (gEvIv->isBoxMon)
-                    {
-                        monId =  SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->cursorPos, gEvIv->lastIdx, DIR_DOWN_2);
-                        if (monId == -1)//si llega al final, revise el primer elemento.
-                            monId = SeekToNextMonInBox(gEvIv->monList.boxMons, 1, gEvIv->lastIdx, DIR_UP_2);
-                        if (monId == -1)//si el primer elemento no tiene boxmon, revise desde el segundo en adelante.
-                            monId = SeekToNextMonInBox(gEvIv->monList.boxMons, 0, gEvIv->lastIdx, DIR_DOWN_2);
-                        if (gEvIv->cursorPos == monId)
-                            update_mon = FALSE;
-                        else
-                            gEvIv->cursorPos = monId;
-                    }
-                #ifdef FIRERED
-                    else if (IsUpdateLinkStateCBActive() == FALSE
-                        && gReceivedRemoteLinkPlayers == 1
-                        && IsMultiBattle() == TRUE)
-                #else //EMERALD
-                    else if (IsMultiBattle() == TRUE)
-                #endif
-                    {
-                        gEvIv->cursorPos = AdvanceMultiBattleMonIndex(+1);
-                    }
-                    else
-                    {
-                        if (gEvIv->cursorPos == gEvIv->lastIdx)
-                            gEvIv->cursorPos = 0;
-                        else
-                            gEvIv->cursorPos++;
-                    }
+        else if (gEvIv->lastIdx)
+        {
 
-                    if (update_mon)
-                        UpdateCurrentMon();
+            if (JOY_REPT(DPAD_DOWN))
+            {
+                if (gEvIv->isBoxMon)
+                {
+                    monId =  SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->cursorPos, gEvIv->lastIdx, DIR_DOWN_2);
+                    if (monId == -1)//si llega al final, revise el primer elemento.
+                        monId = SeekToNextMonInBox(gEvIv->monList.boxMons, 1, gEvIv->lastIdx, DIR_UP_2);
+                    if (monId == -1)//si el primer elemento no tiene boxmon, revise desde el segundo en adelante.
+                        monId = SeekToNextMonInBox(gEvIv->monList.boxMons, 0, gEvIv->lastIdx, DIR_DOWN_2);
+                    if (gEvIv->cursorPos == monId)
+                        update_mon = FALSE;
+                    else
+                        gEvIv->cursorPos = monId;
                 }
-                else if (JOY_REPT(DPAD_UP))
+            #ifdef FIRERED
+                else if (IsUpdateLinkStateCBActive() == FALSE
+                    && gReceivedRemoteLinkPlayers == 1
+                    && IsMultiBattle() == TRUE)
+            #else //EMERALD
+                else if (IsMultiBattle() == TRUE)
+            #endif
                 {
-                    if (gEvIv->isBoxMon)
-                    {
-                        monId =  SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->cursorPos, gEvIv->lastIdx, DIR_UP_2);
-                        if (monId == -1)//si llega al inicio, revise el último elemento.
-                            monId = SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->lastIdx -1, gEvIv->lastIdx, DIR_DOWN_2);
-                        if (monId == -1)//si el último elemento no tiene boxMon, revise desde el penúltimo hacia atrás
-                            monId = SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->lastIdx, gEvIv->lastIdx, DIR_UP_2);
-                        if (gEvIv->cursorPos == monId)
-                            update_mon = FALSE;
-                        else
-                            gEvIv->cursorPos = monId;
-                    }
-                #ifdef FIRERED
-                    else if (IsUpdateLinkStateCBActive() == FALSE
-                        && gReceivedRemoteLinkPlayers == 1
-                        && IsMultiBattle() == TRUE)
-                #else //EMERALD
-                    else if (IsMultiBattle() == TRUE)
-                #endif
-                    {
-                        gEvIv->cursorPos = AdvanceMultiBattleMonIndex(-1);
-                    }
+                    gEvIv->cursorPos = AdvanceMultiBattleMonIndex(+1);
+                }
+                else
+                {
+                    if (gEvIv->cursorPos == gEvIv->lastIdx)
+                        gEvIv->cursorPos = 0;
                     else
-                    {
-                        if (gEvIv->cursorPos == 0)
-                            gEvIv->cursorPos = gEvIv->lastIdx;
-                        else
-                            gEvIv->cursorPos--;
-                    }
-
-                    if (update_mon)
-                        UpdateCurrentMon();
+                        gEvIv->cursorPos++;
                 }
 
+                if (update_mon)
+                    UpdateCurrentMon();
+            }
+            else if (JOY_REPT(DPAD_UP))
+            {
+                if (gEvIv->isBoxMon)
+                {
+                    monId =  SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->cursorPos, gEvIv->lastIdx, DIR_UP_2);
+                    if (monId == -1)//si llega al inicio, revise el último elemento.
+                        monId = SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->lastIdx -1, gEvIv->lastIdx, DIR_DOWN_2);
+                    if (monId == -1)//si el último elemento no tiene boxMon, revise desde el penúltimo hacia atrás
+                        monId = SeekToNextMonInBox(gEvIv->monList.boxMons, gEvIv->lastIdx, gEvIv->lastIdx, DIR_UP_2);
+                    if (gEvIv->cursorPos == monId)
+                        update_mon = FALSE;
+                    else
+                        gEvIv->cursorPos = monId;
+                }
+            #ifdef FIRERED
+                else if (IsUpdateLinkStateCBActive() == FALSE
+                    && gReceivedRemoteLinkPlayers == 1
+                    && IsMultiBattle() == TRUE)
+            #else //EMERALD
+                else if (IsMultiBattle() == TRUE)
+            #endif
+                {
+                    gEvIv->cursorPos = AdvanceMultiBattleMonIndex(-1);
+                }
+                else
+                {
+                    if (gEvIv->cursorPos == 0)
+                        gEvIv->cursorPos = gEvIv->lastIdx;
+                    else
+                        gEvIv->cursorPos--;
+                }
+
+                if (update_mon)
+                    UpdateCurrentMon();
+            }
             if (/*JOY_NEW(A_BUTTON) ||*/ JOY_NEW(B_BUTTON))
             {
-    #ifdef FIRERED
-                PlaySE(SE_CARD_FLIP);
-    #else//EMERALD
-                PlaySE(SE_RG_CARD_FLIP);
-    #endif
-                BeginNormalPaletteFade(0xFFFFFFFF, 0, 0, 16, RGB_BLACK);
-                gEvIv->state++;
+        #ifdef FIRERED
+                    PlaySE(SE_CARD_FLIP);
+        #else//EMERALD
+                    PlaySE(SE_RG_CARD_FLIP);
+        #endif
+                    BeginNormalPaletteFade(0xFFFFFFFF, 0, 0, 16, RGB_BLACK);
+                    gEvIv->state++;
             }
         }
+
         break;
     case 2:
         if (!IsCryPlaying())
             Task_EvIvReturn(taskId);
         break;
     }
+}
+
+static void ChangeSelectedStat(u8 stat, u8 ev, bool8 increase)
+{
+    u8 newValue;
+    u8 statToEdit;
+    u8 increaseBy = (ev) ? 2 : 1;
+    u16 total = 0;
+    u16 newTotal = 0;
+    switch(stat)
+    {
+        case EDITOR_STAT_SPATK:
+            statToEdit = (ev) ? MON_DATA_SPATK_EV : MON_DATA_SPATK_IV;
+            break;
+        case EDITOR_STAT_SPDEF:
+            statToEdit = (ev) ? MON_DATA_SPDEF_EV : MON_DATA_SPDEF_IV;
+            break;
+        case EDITOR_STAT_SPD:
+            statToEdit = (ev) ? MON_DATA_SPEED_EV : MON_DATA_SPEED_IV;
+            break;
+        default:
+            statToEdit = (ev) ? MON_DATA_HP_EV + stat : MON_DATA_HP_IV + stat;
+            break;
+    }
+
+    struct Pokemon * mon = &gPlayerParty[gEvIv->cursorPos];
+    u8 currValue = GetMonData(mon, statToEdit);
+    // u8 maxValue = (ev) ? 252 : 31;
+    if(!ev)
+    {
+        if (currValue > 30 && increase)
+            newValue = 0;
+        else if (currValue == 0 && !increase)
+            newValue = 31;
+        else if (increase)
+            newValue = currValue + increaseBy;
+        else
+            newValue = currValue - increaseBy;
+    }
+    if(ev)
+    {
+        if(currValue > 250 && increase)
+            newValue = 0;
+        else if (currValue < 2 && !increase)
+            newValue = 252;
+        else if (increase)
+            newValue = currValue + increaseBy;
+        else if (!increase)
+            newValue = currValue - increaseBy;
+        u16 cap = 510;
+        total += GetMonData(mon, MON_DATA_HP_EV);
+        total += GetMonData(mon, MON_DATA_ATK_EV);
+        total += GetMonData(mon, MON_DATA_DEF_EV);
+        total += GetMonData(mon, MON_DATA_SPATK_EV);
+        total += GetMonData(mon, MON_DATA_SPDEF_EV);
+        total += GetMonData(mon, MON_DATA_SPEED_EV);
+        newTotal += (statToEdit == MON_DATA_HP_EV) ? newValue : GetMonData(mon, MON_DATA_HP_EV);
+        newTotal += (statToEdit == MON_DATA_ATK_EV) ? newValue : GetMonData(mon, MON_DATA_ATK_EV);
+        newTotal += (statToEdit == MON_DATA_DEF_EV) ? newValue : GetMonData(mon, MON_DATA_DEF_EV);
+        newTotal += (statToEdit == MON_DATA_SPATK_EV) ? newValue : GetMonData(mon, MON_DATA_SPATK_EV);
+        newTotal += (statToEdit == MON_DATA_SPDEF_EV) ? newValue : GetMonData(mon, MON_DATA_SPDEF_EV);
+        newTotal += (statToEdit == MON_DATA_SPEED_EV) ? newValue : GetMonData(mon, MON_DATA_SPEED_EV);
+        if(newTotal > cap)
+            newValue = cap - total;
+    }
+    /*u8 maxValue = (ev) ? 252 : 31;
+
+    increaseBy = (ev) ? 2 : 1;
+    if(increase && currValue != 251 && currValue != 252)
+         newValue = currValue + increaseBy;
+    else if (currValue == 252)
+    {
+        newValue = 0;
+    }
+    else if(!increase && currValue != 0 && currValue != 1)
+        newValue = currValue - increaseBy;
+    else if(currValue == 0)
+    {
+        newValue = GetCurrentEVCap();
+    }
+    if(ev)
+    {
+        u16 cap = GetCurrentEVCap();
+        total += mon->hpEv;
+        total += mon->atkEv;
+        total += mon->defEv;
+        total += mon->spAtkEv;
+        total += mon->spDefEv;
+        total += mon->spdEv;
+        newTotal += (statToEdit == MON_DATA_HP_EV) ? newValue : mon->hpEv;
+        newTotal += (statToEdit == MON_DATA_ATK_EV) ? newValue : mon->atkEv;
+        newTotal += (statToEdit == MON_DATA_DEF_EV) ? newValue : mon->defEv;
+        newTotal += (statToEdit == MON_DATA_SPATK_EV) ? newValue : mon->spAtkEv;
+        newTotal += (statToEdit == MON_DATA_SPDEF_EV) ? newValue : mon->spDefEv;
+        newTotal += (statToEdit == MON_DATA_SPEED_EV) ? newValue : mon->spdEv;
+        if(newTotal >= cap)
+            newValue = cap - total;
+        if(!(newValue % 2 == 0))
+            newValue -= 1;
+    }*/
+    SetMonData(mon, statToEdit, &newValue);
+    MiniEvIvPrintText(mon, ev, statToEdit, newValue, stat, FALSE);
 }
 
 static void UpdateCurrentMon(void)
@@ -1311,10 +1424,10 @@ static u8 EvIvLoadGfx(void)
 
 static void ShowSprite(struct Pokemon *mon)
 {
-    u16 species = GetMonData(mon, MON_DATA_SPECIES, NULL);
-    u8 isEgg    = GetMonData(mon, MON_DATA_IS_EGG, NULL);
-    u32 otId = GetMonData(mon, MON_DATA_OT_ID, NULL);
-    u32 personality = GetMonData(mon, MON_DATA_PERSONALITY, NULL);
+    u16 species = GetMonData(mon, MON_DATA_SPECIES);
+    u8 isEgg    = GetMonData(mon, MON_DATA_IS_EGG);
+    u32 otId = GetMonData(mon, MON_DATA_OT_ID);
+    u32 personality = GetMonData(mon, MON_DATA_PERSONALITY);
 
     //imprime el sprite del pokémon, si es un huevo no suena grito.
     //Print the sprite of the pokémon, if it is an egg it does not sound a scream.
@@ -1462,6 +1575,108 @@ static void PrintWindow0(struct Pokemon *mon);
 static void PrintWindow1(u8 nature, u8 isEgg);
 static void PrintWindow2(u16 species, u8 isEgg, u8 friendship, struct Pokemon *mon);
 static void PrintWindow_HiddenPower(u8 isEgg, u8 friendship);
+
+static void MiniEvIvPrintText(struct Pokemon *mon, bool8 ev, u8 stat, u8 newValue, u8 stat2, bool8 fixev)
+{
+    u8 nature   = GetNature(mon);
+    u8 arrStat;
+    if(!fixev)
+    {
+        switch(stat)
+        {
+            case MON_DATA_SPATK_EV:
+            case MON_DATA_SPATK_IV:
+                arrStat = STAT_SPATK;
+                break;
+            case MON_DATA_SPDEF_EV:
+            case MON_DATA_SPDEF_IV:
+                arrStat = STAT_SPDEF;
+                break;
+            case MON_DATA_SPEED_EV:
+            case MON_DATA_SPEED_IV:
+                arrStat = STAT_SPEED;
+                break;
+            default:
+                arrStat = STAT_HP + stat2;
+                break;
+        }
+    }
+    else
+    {
+
+    }
+    if(ev)
+    {
+        gTotalStatsEV = 0;
+        gStats_ev[arrStat] = newValue;
+        for (int i = 0; i < NUM_STATS; i++)
+            gTotalStatsEV += gStats_ev[i];
+    }
+    else
+    {
+        gTotalStatsIV = 0;
+        gStats_iv[arrStat] = newValue;
+        for (int i = 0; i < NUM_STATS; i++)
+            gTotalStatsIV += gStats_iv[i];
+    }
+    //FillWindowPixelBuffer(0, 0);
+    /*FillWindowPixelBuffer(1, 0);
+    FillWindowPixelBuffer(2, 0);
+
+    //PrintWindow0(mon);
+    PrintWindow1(nature, isEgg);
+    PrintWindow2(species, isEgg, friendship, ability);*/
+    ConvertIntToDecimalStringN(gStringVar2, gStats_ev[arrStat], STR_CONV_MODE_RIGHT_ALIGN, 3);
+    ConvertIntToDecimalStringN(gStringVar3, gStats_iv[arrStat], STR_CONV_MODE_RIGHT_ALIGN, 2);
+    u8 color = GetColorByNature(nature, arrStat);
+    switch(arrStat)
+    {
+        case STAT_HP:
+            FillWindowPixelRect(WIN_STATS, PIXEL_FILL(0), (ev) ? EV_X : IV_X, HP_Y, 22, 12);
+            AddTextPrinterParameterized3(WIN_STATS, 2, (ev) ? EV_X : IV_X, HP_Y, sTextColorByNature[color], 0, (ev) ? gStringVar2 : gStringVar3);
+            break;
+        case STAT_ATK:
+            FillWindowPixelRect(WIN_STATS, PIXEL_FILL(0), (ev) ? EV_X : IV_X, ATK_Y, 22, 12);
+            AddTextPrinterParameterized3(WIN_STATS, 2, (ev) ? EV_X : IV_X, ATK_Y, sTextColorByNature[color], 0, (ev) ? gStringVar2 : gStringVar3);
+            break;
+        case STAT_DEF:
+            FillWindowPixelRect(WIN_STATS, PIXEL_FILL(0), (ev) ? EV_X : IV_X, DEF_Y, 22, 12);
+            AddTextPrinterParameterized3(WIN_STATS, 2, (ev) ? EV_X : IV_X, DEF_Y, sTextColorByNature[color], 0, (ev) ? gStringVar2 : gStringVar3);
+            break;
+        case STAT_SPATK:
+            FillWindowPixelRect(WIN_STATS, PIXEL_FILL(0), (ev) ? EV_X : IV_X, SPATK_Y, 22, 12);
+            AddTextPrinterParameterized3(WIN_STATS, 2, (ev) ? EV_X : IV_X, SPATK_Y, sTextColorByNature[color], 0, (ev) ? gStringVar2 : gStringVar3);
+            break;
+        case STAT_SPDEF:
+            FillWindowPixelRect(WIN_STATS, PIXEL_FILL(0), (ev) ? EV_X : IV_X, SPDEF_Y, 22, 12);
+            AddTextPrinterParameterized3(WIN_STATS, 2, (ev) ? EV_X : IV_X, SPDEF_Y, sTextColorByNature[color], 0, (ev) ? gStringVar2 : gStringVar3);
+            break;
+        case STAT_SPEED:
+            FillWindowPixelRect(WIN_STATS, PIXEL_FILL(0), (ev) ? EV_X : IV_X, SPEED_Y, 22, 12);
+            AddTextPrinterParameterized3(WIN_STATS, 2, (ev) ? EV_X : IV_X, SPEED_Y, sTextColorByNature[color], 0, (ev) ? gStringVar2 : gStringVar3);
+            break;
+    }
+
+    ConvertIntToDecimalStringN(gStringVar2, gTotalStatsEV, STR_CONV_MODE_RIGHT_ALIGN, 3);
+    
+    // ConvertIntToDecimalStringN(gStringVar3, gTotalStatsIV, STR_CONV_MODE_RIGHT_ALIGN, 3);
+    // FillWindowPixelRect(WIN_BOTTOM_BOX, PIXEL_FILL(0), (ev) ? EV_X  : IV_X + 2, 4, 18, 13);
+    FillWindowPixelRect(WIN_BOTTOM_BOX, PIXEL_FILL(0),  EV_X, 4, 18, 13);
+
+    if(ev)
+    {
+        AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 2, EV_X, 4, sBlackTextColor, 0, gStringVar2);
+        
+    }
+    // else
+    // {
+    //     AddTextPrinterParameterized3(WIN_BOTTOM_BOX, 2, IV_X + 2, 4, sBlackTextColor, 0, gStringVar3);    
+    // }
+
+    //PutWindowTilemap(0);
+    PutWindowTilemap(1);
+    PutWindowTilemap(2);
+}
 
 static void EvIvPrintText(struct Pokemon *mon)
 {
@@ -2533,4 +2748,87 @@ void ClearPageWindowTilemaps(u8 page)
 }
 
 #endif
+
+
+static void UpdateCursorSpritePos(u16 spriteId, u8 stat, bool8 goingUp, bool8 resetY)
+{
+    struct Sprite * sprite = &gSprites[spriteId];
+    u8 newPosX = sprite->x; 
+    u8 newPosY = sprite->y;
+    // u8 ability = GetMonAbility(&gEvIv->gcurrentMon);
+    // u16 species = GetMonData(&gEvIv->currentMon, MON_DATA_SPECIES);
+
+    if(stat == 0xFF)
+    {
+        switch(gSelectedColumn)
+        {
+            case EVS:
+                newPosX = 112;
+                break;
+            case IVS:
+                newPosX = 138;
+                break;
+            // case ABILITY_EDIT:
+            //     CopyAbilityName(gStringVar1, ability, species);
+            //     newPosX = (157 + (GetStringWidth(2, gStringVar1, 0) / 2)) - 5;
+            //     newPosY = 121;
+            //     break;
+            case GENDER:
+                newPosX = 164;
+                newPosY = 24;
+                break;
+        }
+    }
+    else
+    {
+        if(!goingUp)
+        {
+            if(stat == EDITOR_STAT_HP)
+                newPosY = 28;
+            else
+                newPosY += 14;
+        }
+        else
+        {
+            if(stat == EDITOR_STAT_SPD)
+                newPosY = 98;
+            else
+                newPosY -= 14;
+        }
+    }
+    if(resetY)
+    {
+        if(goingUp)
+        {
+            newPosX = 112;
+            newPosY = 28;
+        }
+        else
+        {
+            newPosX = 138;
+            newPosY = 28;
+        }
+    }
+
+    sprite->x = newPosX;
+    sprite->y = newPosY;
+}
+
+static void FixOddEVs(void)
+{
+    struct Pokemon * mon = &gEvIv->currentMon;
+    for(int i = MON_DATA_HP_EV; i < MON_DATA_SPDEF_EV + 1; i++)
+    {
+        u16 ev = GetMonData(mon, i);
+        u16 newEv;
+        if(ev % 2 && ev != 0)
+        {
+            newEv = ev - 1;
+            SetMonData(mon, i, &newEv);
+            MiniEvIvPrintText(mon, TRUE, i, newEv, i - MON_DATA_HP_EV, FALSE);
+        }
+            
+
+    }
+}
 
