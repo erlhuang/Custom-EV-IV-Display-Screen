@@ -460,7 +460,7 @@ const u8 gText_EvoSlowpokeStuff[] = _("37 or King's Rock.");
 const u8 gText_EvoSnoruntStuff[] = _("42 or Dawn Stone if Female.");
 const u8 gText_EvoKirliaStuff[] = _("30 or Dawn Stone if Male.");
 const u8 gText_PikachuStuff[] = _("Thunder or Shiny Stone.");
-const u8 gText_EvoAvaluggStuff[] = _("37 or Ice Stone.");
+const u8 gText_EvoAvaluggStuff[] = _("36 or Ice Stone.");
 const u8 gText_EvoGoomyStuff[] = _("40 or Metal Coat.");
 
 const u8 gText_EvoPoliStuff[] = _("Water Stone or King's Rock.");
@@ -820,7 +820,7 @@ static void Task_WaitForExit(u8 taskId)
         gEvIv->state++;
         break;
     case 1:
-        if (FlagGet(FLAG_EV_IV) && !(FlagGet(FLAG_MINIMAL_GRINDING_MODE) && !(gEvIv->isBoxMon))){
+        if (!(FlagGet(FLAG_MINIMAL_GRINDING_MODE)) && !gEvIv->isBoxMon){
             if (JOY_NEW(A_BUTTON))
             {
                 if (!gInSelector && !gInEditor)
@@ -954,7 +954,9 @@ static void Task_WaitForExit(u8 taskId)
                 {
                     // if(gSelectedColumn == 0)
                     //     gSelectedColumn = (GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) != MON_GENDERLESS) ? 3 : 2;
-                    if(gSelectedColumn == 2)
+                    if(gSelectedColumn == 0)
+                        gSelectedColumn++;
+                    else if(gSelectedColumn == 2)
                     {
                         gSelectedColumn = 1;
                         resetY = TRUE;
@@ -966,11 +968,11 @@ static void Task_WaitForExit(u8 taskId)
                 }
                 if (JOY_REPT(DPAD_RIGHT))
                 {
-                    if(/*GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) == MON_GENDERLESS &&*/ gSelectedColumn == 2)
+                    if(/*GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) == MON_GENDERLESS &&*/ gSelectedColumn == 1)
                     {
                         gSelectedColumn = 0;
-                        resetY = TRUE;
-                        gSelectedStat = STAT_HP;
+                        // resetY = TRUE;
+                        // gSelectedStat = STAT_HP;
                     }
                     else if(gSelectedColumn == 3)
                     {
@@ -1078,7 +1080,7 @@ static void Task_WaitForExit(u8 taskId)
                 if (update_mon)
                     UpdateCurrentMon();
             }
-            if (/*JOY_NEW(A_BUTTON) ||*/ JOY_NEW(B_BUTTON))
+            if (JOY_NEW(A_BUTTON) || JOY_NEW(B_BUTTON))
             {
         #ifdef FIRERED
                     PlaySE(SE_CARD_FLIP);
