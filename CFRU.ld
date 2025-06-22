@@ -154,4 +154,4 @@ GetGenderFromSpeciesAndPersonality = 0x803F78C | 1;
 SetMonData = 0x804037C | 1;
 
 /*below needs to be dynamically changed*/
-CalculateMonStatsNew = 0x907F750 | 1; 
+CalculateMonStatsNew = 0x907F9C8 | 1; 

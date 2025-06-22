@@ -172,6 +172,9 @@ enum EvolutionMethods
 //y coordinate of the pokémon sprite, measured in tiles of 8 pixels
 #define PICMON_Y     5
 #define FLAG_MINIMAL_GRINDING_MODE 0x1032
+#define FLAG_EV_UNLOCKED 0x10C7
+#define FLAG_IV_UNLOCKED 0x10C6
+
 // ------------------------------------------------------------------ 
 //                           FIRE RED/ROJOFUEGO     EMERALD/ESMERALDA
 // FLAG_SYS_POKEMON_GET      0x828                  0x860
@@ -820,7 +823,7 @@ static void Task_WaitForExit(u8 taskId)
         gEvIv->state++;
         break;
     case 1:
-        if (!(FlagGet(FLAG_MINIMAL_GRINDING_MODE)) && !gEvIv->isBoxMon){
+        if (!(FlagGet(FLAG_MINIMAL_GRINDING_MODE)) && !gEvIv->isBoxMon && FlagGet(FLAG_EV_UNLOCKED)){
             if (JOY_NEW(A_BUTTON))
             {
                 if (!gInSelector && !gInEditor)
@@ -954,7 +957,7 @@ static void Task_WaitForExit(u8 taskId)
                 {
                     // if(gSelectedColumn == 0)
                     //     gSelectedColumn = (GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) != MON_GENDERLESS) ? 3 : 2;
-                    if(gSelectedColumn == 0)
+                    if(gSelectedColumn == 0 && FlagGet(FLAG_IV_UNLOCKED))
                         gSelectedColumn++;
                     else if(gSelectedColumn == 2)
                     {
@@ -962,13 +965,13 @@ static void Task_WaitForExit(u8 taskId)
                         resetY = TRUE;
                         gSelectedStat = STAT_HP;
                     }
-                    else
+                    else if (FlagGet(FLAG_IV_UNLOCKED))
                         gSelectedColumn--;
                     UpdateCursorSpritePos(gCursorSpriteId, 0xFF, FALSE, resetY);
                 }
                 if (JOY_REPT(DPAD_RIGHT))
                 {
-                    if(/*GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) == MON_GENDERLESS &&*/ gSelectedColumn == 1)
+                    if(/*GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) == MON_GENDERLESS &&*/ gSelectedColumn == 1 && FlagGet(FLAG_IV_UNLOCKED))
                     {
                         gSelectedColumn = 0;
                         // resetY = TRUE;
@@ -980,7 +983,7 @@ static void Task_WaitForExit(u8 taskId)
                         resetY = TRUE;
                         gSelectedStat = STAT_HP;
                     }
-                    else
+                    else if (FlagGet(FLAG_IV_UNLOCKED))
                         gSelectedColumn++;
                     UpdateCursorSpritePos(gCursorSpriteId, 0xFF, TRUE, resetY);
                 }
