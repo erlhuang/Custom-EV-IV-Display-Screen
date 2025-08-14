@@ -21,4 +21,4 @@ OFFSET ?= 0x08805080
 # [CFRU]
 # en el archivo offsets.ini de tu CFRU, buscar el offset+1 de CompressedMonToMon y ponerlo aquí:
 # in your CFRU's offsets.ini file, look for the offset+1 of CompressedMonToMon and put it here:
-COMPRESSED_MON_TO_MON_PTR ?= 0x090BE12D
+COMPRESSED_MON_TO_MON_PTR ?= 0x090BF76D
