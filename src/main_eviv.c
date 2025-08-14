@@ -45,7 +45,7 @@ typedef struct Evolution EvolutionTableT[EVOS_PER_MON];
 #define FLAG_ARCHER_MT_MOON 0x201
 #define FLAG_HARDCORE_MODE 0x1034
 #define FLAG_EASY_MODE 0x1033
-
+#define FLAG_CHRIS_KAIZO 0x10D1
 enum EvolutionMethods
 {
 	EVO_NONE = 0,
@@ -820,196 +820,8 @@ static void Task_WaitForExit(u8 taskId)
         gEvIv->state++;
         break;
     case 1:
-        if (!(FlagGet(FLAG_MINIMAL_GRINDING_MODE)) && !gEvIv->isBoxMon){
-            if (JOY_NEW(A_BUTTON))
-            {
-                if (!gInSelector && !gInEditor)
-                {
-                    gInSelector = TRUE;
-                    PlaySE(5);
-                    CreateSandboxCursor();
-                }
-                else if(!gInEditor && gInSelector)
-                {
-                    PlaySE(5);
-                    gInEditor = TRUE;
-                    gInSelector = FALSE;
-                    DestroySprite(&gSprites[gCursorSpriteId]);
-                }
-            }
-            if (JOY_NEW(B_BUTTON))
-            {
-                if(!gInSelector && !gInEditor)
-                {
-                    PlaySE(242);
-                    DestroySprite(&gSprites[gCursorSpriteId]);
-                    BeginNormalPaletteFade(0xFFFFFFFF, 0, 0, 16, RGB_BLACK);
-                    for(u8 i = 0; i < gPlayerPartyCount; i++)
-                    {
-                        CalculateMonStatsNew(&gPlayerParty[i]);
-                        // u8 max = GetMonData(&gPlayerParty[i], MON_DATA_MAX_HP);
-                        // u8 curr = GetMonData(&gPlayerParty[i], MON_DATA_HP);
-                        // if(curr > max)
-                        // {
-                        //     SetMonData(&gPlayerParty[i], MON_DATA_HP, &max);
-                        // }
-                    }
-                    gState++;
-                }
-                else if (gInEditor)
-                {
-                    PlaySE(5);
-                    gInEditor = FALSE;
-                    gInSelector = TRUE;
-                    CreateSandboxCursor();
-                    if(gSelectedColumn == 2)
-                        UpdateCursorSpritePos(gCursorSpriteId, 0xFF, FALSE, FALSE);
-                    
-                }
-                else
-                {
-                    PlaySE(5);
-                    gInSelector = FALSE;
-                    DestroySprite(&gSprites[gCursorSpriteId]);
-                }
-            }
-            // if(JOY_NEW(R_BUTTON))
-            // {
-            //     SandboxChangeNature(TRUE);
-            // }
-            // if(JOY_NEW(L_BUTTON))
-            // {
-            //     SandboxChangeNature(FALSE);
-            // }
-            if (!gInSelector && !gInEditor)
-            {
-                if (JOY_REPT(DPAD_DOWN) && gPlayerPartyCount > 1)
-                {
-                    if (gEvIv->cursorPos == gEvIv->lastIdx)
-                        gEvIv->cursorPos = 0;
-                    else
-                        gEvIv->cursorPos++;
-                    if (update_mon)
-                        UpdateCurrentMon();
-                    // HidePokemonPic2(gSpriteTaskId);
-                    // ShowSprite(&gEvIv->currentMon);
-                    // EvIvPrintText(&gEvIv->currentMon);
-                    // PrintGenderText(&gEvIv->currentMon);
-                    //reset selected column & selected stat
-                    gSelectedColumn = 0;
-                    gSelectedStat = STAT_HP;
-                }
-                if (JOY_REPT(DPAD_UP) && gPlayerPartyCount > 1)
-                {
-                    if (gEvIv->cursorPos == 0)
-                        gEvIv->cursorPos = gEvIv->lastIdx;
-                    else
-                        gEvIv->cursorPos--;
-                    if (update_mon)
-                        UpdateCurrentMon();
-                    // HidePokemonPic2(gSpriteTaskId);
-                    // ShowSprite(&gEvIv->currentMon);
-                    // EvIvPrintText(&gEvIv->currentMon);
-                    // PrintGenderText(&gEvIv->currentMon);
-                    //reset selected column & selected stat
-                    gSelectedColumn = 0;
-                    gSelectedStat = STAT_HP;
-
-                }
-            }
-            else if(gInSelector)
-            {
-                u8 resetY = FALSE;
-                if (JOY_NEW(START_BUTTON))
-                {
-                    FixOddEVs();
-                }
-                if (JOY_REPT(DPAD_DOWN))
-                {
-                    if(gSelectedColumn == 2 || gSelectedColumn == 3)
-                    {
-                        //dont do anything
-                    }
-                    else if(gSelectedStat == EDITOR_STAT_SPD)
-                        gSelectedStat = EDITOR_STAT_HP;
-                    else
-                        gSelectedStat++;
-                    if(gSelectedColumn != 2 && gSelectedColumn != 3)
-                        UpdateCursorSpritePos(gCursorSpriteId, gSelectedStat, FALSE, FALSE);
-                }
-                if (JOY_REPT(DPAD_UP))
-                {
-                    if(gSelectedColumn == 2 || gSelectedColumn == 3)
-                    {
-                        //dont do anything
-                    }
-                    else if(gSelectedStat == EDITOR_STAT_HP)
-                        gSelectedStat = EDITOR_STAT_SPD;
-                    else
-                        gSelectedStat--;
-                    if(gSelectedColumn != 2 && gSelectedColumn != 3)
-                        UpdateCursorSpritePos(gCursorSpriteId, gSelectedStat, TRUE, FALSE);
-                }
-                if (JOY_REPT(DPAD_LEFT))
-                {
-                    // if(gSelectedColumn == 0)
-                    //     gSelectedColumn = (GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) != MON_GENDERLESS) ? 3 : 2;
-                    if(gSelectedColumn == 0)
-                        gSelectedColumn++;
-                    else if(gSelectedColumn == 2)
-                    {
-                        gSelectedColumn = 1;
-                        resetY = TRUE;
-                        gSelectedStat = STAT_HP;
-                    }
-                    else
-                        gSelectedColumn--;
-                    UpdateCursorSpritePos(gCursorSpriteId, 0xFF, FALSE, resetY);
-                }
-                if (JOY_REPT(DPAD_RIGHT))
-                {
-                    if(/*GetGenderFromSpeciesAndPersonality(&gEvIv->currentMon.species, &gEvIv->currentMon.personality) == MON_GENDERLESS &&*/ gSelectedColumn == 1)
-                    {
-                        gSelectedColumn = 0;
-                        // resetY = TRUE;
-                        // gSelectedStat = STAT_HP;
-                    }
-                    else if(gSelectedColumn == 3)
-                    {
-                        gSelectedColumn = 0;
-                        resetY = TRUE;
-                        gSelectedStat = STAT_HP;
-                    }
-                    else
-                        gSelectedColumn++;
-                    UpdateCursorSpritePos(gCursorSpriteId, 0xFF, TRUE, resetY);
-                }
-            }
-            else if(gInEditor)
-            {
-                if (JOY_REPT(DPAD_LEFT))
-                {
-                    // if(gSelectedColumn == 2)
-                    //     SandboxChangeAbility(FALSE);
-                    // else if(gSelectedColumn == 3)
-                    //     SandboxChangeGender();
-                    // else
-                    ChangeSelectedStat(gSelectedStat, gSelectedColumn == 0, FALSE);
-                }
-                if (JOY_REPT(DPAD_RIGHT))
-                {
-                    // if(gSelectedColumn == 2)
-                    //     SandboxChangeAbility(TRUE);
-                    // else if(gSelectedColumn == 3)
-                    //     SandboxChangeGender();
-                    // else
-                    ChangeSelectedStat(gSelectedStat, gSelectedColumn == 0, TRUE);
-                } 
-            }
-        }
-        else if (gEvIv->lastIdx)
+        if (gEvIv->lastIdx)
         {
-
             if (JOY_REPT(DPAD_DOWN))
             {
                 if (gEvIv->isBoxMon)
@@ -1080,18 +892,18 @@ static void Task_WaitForExit(u8 taskId)
                 if (update_mon)
                     UpdateCurrentMon();
             }
-            if (JOY_NEW(A_BUTTON) || JOY_NEW(B_BUTTON))
-            {
-        #ifdef FIRERED
-                    PlaySE(SE_CARD_FLIP);
-        #else//EMERALD
-                    PlaySE(SE_RG_CARD_FLIP);
-        #endif
-                    BeginNormalPaletteFade(0xFFFFFFFF, 0, 0, 16, RGB_BLACK);
-                    gEvIv->state++;
-            }
         }
 
+        if (JOY_NEW(A_BUTTON) || JOY_NEW(B_BUTTON))
+        {
+#ifdef FIRERED
+            PlaySE(SE_CARD_FLIP);
+#else//EMERALD
+            PlaySE(SE_RG_CARD_FLIP);
+#endif
+            BeginNormalPaletteFade(0xFFFFFFFF, 0, 0, 16, RGB_BLACK);
+            gEvIv->state++;
+        }
         break;
     case 2:
         if (!IsCryPlaying())
@@ -1099,6 +911,7 @@ static void Task_WaitForExit(u8 taskId)
         break;
     }
 }
+
 
 static void ChangeSelectedStat(u8 stat, u8 ev, bool8 increase)
 {
