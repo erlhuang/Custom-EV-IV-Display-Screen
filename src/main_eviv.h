@@ -54,7 +54,7 @@ struct EvIvDisplayScreen
  
     u8 stats_ev[NUM_STATS];
     u8 stats_iv[NUM_STATS];
-    u16 stats_bs[NUM_STATS];
+    u8 stats_bs[NUM_STATS];
     u16 totalStatsEV;
     u16 totalStatsIV;
     u16 totalStatsBS;
